@@ -1,13 +1,11 @@
 /**
- * MailForge Email Generator v10
- * Architecture: JavaScript builds all structural HTML.
- * Claude only writes copy (subject, preview, headlines, paragraphs, CTA text).
- * This guarantees discount code, product grid, logo, and footer always appear.
+ * MailForge Email Generator v11
+ * Fixed: accent color contrast on light backgrounds.
+ * Fixed: hero image uses only Ideogram-generated image, not scraped banners.
  */
 
 export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages) {
 
-  // --- Image resolution ---
   const hasGeneratedImages = generatedImages && generatedImages.length > 0
   const hasScrapedImages = productImages && productImages.length > 0
 
@@ -18,15 +16,13 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
     heroImageUrl = generatedImages.find(i => i.type === 'hero')?.url
     productImageUrl = generatedImages.find(i => i.type === 'product')?.url
   }
-  if (!heroImageUrl && hasScrapedImages) heroImageUrl = productImages[0]?.src
-  if (!productImageUrl && hasScrapedImages && productImages.length > 1) productImageUrl = productImages[1]?.src
+  // Only fall back to scraped images for product section, NOT hero
+  if (!productImageUrl && hasScrapedImages) productImageUrl = productImages[0]?.src
 
-  // --- Brand values ---
   const fontPairing = getFontPairing(brandData.brandTone)
   const isWelcome = emailType === 'Welcome email'
   const logoUrl = brandData.logoUrl || null
 
-  // --- Text contrast ---
   function isDark(hex) {
     const h = (hex || '#000000').replace('#', '')
     if (h.length < 6) return true
@@ -36,13 +32,26 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
     return (r * 299 + g * 587 + b * 114) / 1000 < 128
   }
 
+  function darkenColor(hex) {
+    const h = (hex || '#000000').replace('#', '')
+    if (h.length < 6) return '#111111'
+    let r = parseInt(h.slice(0,2),16)
+    let g = parseInt(h.slice(2,4),16)
+    let b = parseInt(h.slice(4,6),16)
+    r = Math.floor(r * 0.45)
+    g = Math.floor(g * 0.45)
+    b = Math.floor(b * 0.45)
+    return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('')
+  }
+
   const primaryColor = brandData.primaryColor || '#111111'
   const accentColor = brandData.accentColor || '#FFD25F'
   const bgColor = brandData.backgroundColor || '#ffffff'
   const primaryTextColor = isDark(primaryColor) ? '#ffffff' : '#111111'
   const accentTextColor = isDark(accentColor) ? '#ffffff' : '#111111'
+  // Use darkened accent for text on light/white backgrounds
+  const accentForLightBg = isDark(accentColor) ? accentColor : darkenColor(accentColor)
 
-  // --- Real product images from scrape (with alt text = product name) ---
   const realProducts = []
   if (productImages && productImages.length > 0) {
     productImages.forEach(img => {
@@ -53,18 +62,16 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   }
   const topProducts = realProducts.slice(0, 3)
 
-  // --- Step 1: Ask Claude for copy only ---
   const copy = await generateCopyWithClaude({
     brandData, emailType, offer, fontPairing,
     primaryColor, accentColor, primaryTextColor, accentTextColor,
     topProducts, heroImageUrl, isWelcome, anthropic
   })
 
-  // --- Step 2: JavaScript assembles the full email HTML ---
   const html = assembleEmail({
     brandData, emailType, offer, copy,
     fontPairing, primaryColor, accentColor, bgColor,
-    primaryTextColor, accentTextColor,
+    primaryTextColor, accentTextColor, accentForLightBg,
     logoUrl, heroImageUrl, productImageUrl,
     topProducts, isWelcome,
     realQuote: brandData.bestTestimonialQuote || null
@@ -76,8 +83,6 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
     html,
   }
 }
-
-// ─── CLAUDE: writes copy only ────────────────────────────────────────────────
 
 async function generateCopyWithClaude({ brandData, emailType, offer, fontPairing, primaryColor, accentColor, primaryTextColor, accentTextColor, topProducts, heroImageUrl, isWelcome, anthropic }) {
 
@@ -144,14 +149,10 @@ Return this exact JSON:
   throw new Error('Could not parse copy output. Please try again.')
 }
 
-// ─── JAVASCRIPT: assembles full email HTML ────────────────────────────────────
-
-function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primaryColor, accentColor, bgColor, primaryTextColor, accentTextColor, logoUrl, heroImageUrl, productImageUrl, topProducts, isWelcome, realQuote }) {
+function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primaryColor, accentColor, bgColor, primaryTextColor, accentTextColor, accentForLightBg, logoUrl, heroImageUrl, productImageUrl, topProducts, isWelcome, realQuote }) {
 
   const df = `'${fontPairing.display}',Georgia,'Times New Roman',serif`
   const bf = `'${fontPairing.body}',Arial,Helvetica,sans-serif`
-
-  // --- Block builders ---
 
   function headerBlock() {
     const content = logoUrl
@@ -168,7 +169,7 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
   function discountBlock() {
     if (!offer) return ''
     return `
-<tr><td style="padding:0 40px 12px;text-align:center;" bgcolor="${primaryColor}">
+<tr><td style="padding:24px 40px 12px;text-align:center;" bgcolor="${primaryColor}">
   <p style="margin:0 0 10px;font-family:${bf};font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${primaryTextColor};opacity:0.7;">YOUR WELCOME GIFT</p>
   <div style="display:inline-block;background:rgba(255,255,255,0.15);border:2px dashed rgba(255,255,255,0.45);padding:14px 40px;margin:0 auto 10px;">
     <span style="font-family:${df};font-size:34px;letter-spacing:10px;text-transform:uppercase;color:${primaryTextColor};">${offer}</span>
@@ -193,12 +194,12 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
       <td width="${colWidth}" style="padding:8px;text-align:center;vertical-align:top;">
         <img src="${p.src}" width="${colWidth - 16}" style="display:block;margin:0 auto 10px;max-width:100%;border:0;border-radius:4px;" alt="${p.name}">
         <p style="margin:0 0 6px;font-family:${bf};font-size:13px;font-weight:600;color:#111111;">${p.name}</p>
-        <a href="#" style="font-family:${bf};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${accentColor};text-decoration:none;">SHOP NOW</a>
+        <a href="#" style="font-family:${bf};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${accentForLightBg};text-decoration:none;">SHOP NOW</a>
       </td>`).join('')
 
     return `
 <tr><td bgcolor="${bgColor}" style="padding:48px 32px;">
-  <p style="margin:0 0 8px;font-family:${bf};font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${accentColor};text-align:center;">${copy.product_label || 'FEATURED PRODUCTS'}</p>
+  <p style="margin:0 0 8px;font-family:${bf};font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${accentForLightBg};text-align:center;">${copy.product_label || 'FEATURED PRODUCTS'}</p>
   <h2 style="margin:0 0 28px;font-family:${df};font-size:28px;font-weight:700;color:#111111;text-align:center;">${copy.product_headline || ''}</h2>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>${cells}</tr>
@@ -209,7 +210,7 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
   function storyBlock() {
     return `
 <tr><td bgcolor="#ffffff" style="padding:56px 48px;">
-  <p style="margin:0 0 10px;font-family:${bf};font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${accentColor};">${copy.story_label || 'OUR STORY'}</p>
+  <p style="margin:0 0 10px;font-family:${bf};font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${accentForLightBg};">${copy.story_label || 'OUR STORY'}</p>
   <h2 style="margin:0 0 24px;font-family:${df};font-size:32px;font-weight:700;line-height:1.2;color:#111111;">${copy.story_headline || ''}</h2>
   <p style="margin:0 0 16px;font-family:${bf};font-size:15px;line-height:1.8;color:#555555;">${copy.story_p1 || ''}</p>
   <p style="margin:0 0 16px;font-family:${bf};font-size:15px;line-height:1.8;color:#555555;">${copy.story_p2 || ''}</p>
@@ -268,9 +269,7 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
 </td></tr>`
   }
 
-  // --- Assemble sections based on email type ---
   let sections = ''
-
   sections += headerBlock()
   sections += heroImageBlock()
 
@@ -293,8 +292,6 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>@import url('${fontPairing.importUrl}');a{text-decoration:none;}img{border:0;}</style></head><body style="margin:0;padding:20px 0;background:#e8e8e8;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center" style="margin:0 auto;max-width:600px;">${sections}</table></body></html>`
 }
-
-// ─── FONT PAIRINGS ────────────────────────────────────────────────────────────
 
 function getFontPairing(tone) {
   const pairings = {
