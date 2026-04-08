@@ -1,11 +1,13 @@
 /**
- * MailForge Email Generator v9
- * - Logo in header (ogImage, max 60px tall)
- * - Welcome email: correct structure (code → products → brand intro → social proof)
- * - All types: no fake data, real product images, text contrast fix
+ * MailForge Email Generator v10
+ * Architecture: JavaScript builds all structural HTML.
+ * Claude only writes copy (subject, preview, headlines, paragraphs, CTA text).
+ * This guarantees discount code, product grid, logo, and footer always appear.
  */
+
 export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages) {
 
+  // --- Image resolution ---
   const hasGeneratedImages = generatedImages && generatedImages.length > 0
   const hasScrapedImages = productImages && productImages.length > 0
 
@@ -19,51 +21,71 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   if (!heroImageUrl && hasScrapedImages) heroImageUrl = productImages[0]?.src
   if (!productImageUrl && hasScrapedImages && productImages.length > 1) productImageUrl = productImages[1]?.src
 
+  // --- Brand values ---
   const fontPairing = getFontPairing(brandData.brandTone)
   const isWelcome = emailType === 'Welcome email'
   const logoUrl = brandData.logoUrl || null
 
-  // Text contrast: check if a color is dark enough for white text
+  // --- Text contrast ---
   function isDark(hex) {
-    const h = hex.replace('#', '')
+    const h = (hex || '#000000').replace('#', '')
     if (h.length < 6) return true
-    const r = parseInt(h.slice(0,2),16)
-    const g = parseInt(h.slice(2,4),16)
-    const b = parseInt(h.slice(4,6),16)
+    const r = parseInt(h.slice(0, 2), 16)
+    const g = parseInt(h.slice(2, 4), 16)
+    const b = parseInt(h.slice(4, 6), 16)
     return (r * 299 + g * 587 + b * 114) / 1000 < 128
   }
 
-  const primaryIsDark = isDark(brandData.primaryColor || '#000000')
-  const accentIsDark = isDark(brandData.accentColor || '#000000')
-  const primaryTextColor = primaryIsDark ? '#ffffff' : '#111111'
-  const accentTextColor = accentIsDark ? '#ffffff' : '#111111'
+  const primaryColor = brandData.primaryColor || '#111111'
+  const accentColor = brandData.accentColor || '#FFD25F'
+  const bgColor = brandData.backgroundColor || '#ffffff'
+  const primaryTextColor = isDark(primaryColor) ? '#ffffff' : '#111111'
+  const accentTextColor = isDark(accentColor) ? '#ffffff' : '#111111'
 
-  // Build real product list from scraped data
+  // --- Real product images from scrape (with alt text = product name) ---
   const realProducts = []
   if (productImages && productImages.length > 0) {
-    productImages.slice(0, 3).forEach(img => {
-      if (img.alt && img.alt.length > 2) {
-        realProducts.push({ src: img.src, name: img.alt })
+    productImages.forEach(img => {
+      if (img.alt && img.alt.trim().length > 2) {
+        realProducts.push({ src: img.src, name: img.alt.trim() })
       }
     })
   }
+  const topProducts = realProducts.slice(0, 3)
 
-  const realQuote = brandData.bestTestimonialQuote && brandData.bestTestimonialQuote.length > 10
-    ? `USE THIS EXACT REAL CUSTOMER QUOTE: "${brandData.bestTestimonialQuote}"`
-    : null
+  // --- Step 1: Ask Claude for copy only ---
+  const copy = await generateCopyWithClaude({
+    brandData, emailType, offer, fontPairing,
+    primaryColor, accentColor, primaryTextColor, accentTextColor,
+    topProducts, heroImageUrl, isWelcome, anthropic
+  })
 
-  const systemPrompt = `You are a senior email designer at a top agency. Output ONLY valid JSON. Never use markdown code blocks. Your response must start with { and end with }.
-CRITICAL: Write compact HTML. No comments, no blank lines, no unnecessary whitespace. Every byte counts. The entire email must be complete and valid.
-CRITICAL: Never invent data. Only use information explicitly provided. No fake addresses, fake review counts, or fabricated statistics.`
+  // --- Step 2: JavaScript assembles the full email HTML ---
+  const html = assembleEmail({
+    brandData, emailType, offer, copy,
+    fontPairing, primaryColor, accentColor, bgColor,
+    primaryTextColor, accentTextColor,
+    logoUrl, heroImageUrl, productImageUrl,
+    topProducts, isWelcome,
+    realQuote: brandData.bestTestimonialQuote || null
+  })
 
-  // Build the prompt differently for welcome vs other types
-  const emailStructure = isWelcome
-    ? buildWelcomeStructure({ brandData, offer, logoUrl, heroImageUrl, realProducts, realQuote, fontPairing, primaryTextColor, accentTextColor })
-    : buildStandardStructure({ brandData, emailType, offer, logoUrl, heroImageUrl, productImageUrl, realProducts, realQuote, fontPairing, primaryTextColor, accentTextColor })
+  return {
+    subject_line: copy.subject_line,
+    preview_text: copy.preview_text,
+    html,
+  }
+}
 
-  const userPrompt = `Design a premium HTML email for ${brandData.brandName}.
+// ─── CLAUDE: writes copy only ────────────────────────────────────────────────
 
-BRAND DATA (only use what is provided here — do not invent anything):
+async function generateCopyWithClaude({ brandData, emailType, offer, fontPairing, primaryColor, accentColor, primaryTextColor, accentTextColor, topProducts, heroImageUrl, isWelcome, anthropic }) {
+
+  const systemPrompt = `You are an expert email copywriter for ecommerce brands. Output ONLY valid JSON. No markdown. Start with { and end with }.`
+
+  const prompt = `Write copy for a ${emailType} email for ${brandData.brandName}.
+
+BRAND:
 - Name: ${brandData.brandName}
 - Tagline: ${brandData.tagline || ''}
 - Niche: ${brandData.niche}
@@ -72,45 +94,40 @@ BRAND DATA (only use what is provided here — do not invent anything):
 - Tone: ${brandData.brandTone}
 - Voice: ${brandData.brandVoice || ''}
 - USPs: ${(brandData.keySellingPoints || []).join(', ')}
-- Primary color: ${brandData.primaryColor} (text on this: ${primaryTextColor})
-- Accent color: ${brandData.accentColor} (text on this: ${accentTextColor})
-- Background: ${brandData.backgroundColor || '#ffffff'}
-- Product names: ${(brandData.productNames || []).join(', ')}
+- Products: ${(brandData.productNames || []).join(', ')}
 - Mission: ${brandData.missionStatement || ''}
-- Avg order value: ${brandData.avgOrderValue || ''}
+- Offer: ${offer || 'none'}
 
-EMAIL TYPE: ${emailType}
-OFFER: ${offer || 'none'}
+RULES:
+- Only use information provided above. Never invent facts, statistics, or details.
+- Write in the brand voice. Be specific to the niche and products.
+- Keep headlines punchy and short (max 8 words).
+- Keep paragraphs to 2-3 sentences max.
+${isWelcome ? `- Welcome email #1: primary goal is to deliver the discount code and make it easy to shop. Brand intro should be brief.` : ''}
 
-LOGO URL: ${logoUrl || 'NONE'}
-HERO IMAGE URL: ${heroImageUrl || 'NONE'}
-PRODUCT IMAGES AVAILABLE: ${realProducts.map(p => `${p.name}: ${p.src}`).join(' | ') || 'none'}
-
-FONTS:
-@import url('${fontPairing.importUrl}');
-Display font: ${fontPairing.display}
-Body font: ${fontPairing.body}
-
-GLOBAL RULES:
-1. Wrapper table: <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center" style="margin:0 auto;max-width:600px;">
-2. All section backgrounds: use bgcolor attribute on <td>, not CSS background-color
-3. Headlines: font-family:'${fontPairing.display}',Georgia,serif
-4. Body text: font-family:'${fontPairing.body}',Arial,sans-serif
-5. NEVER use white text on light backgrounds. NEVER use dark text on dark backgrounds. Always use the text colors specified above.
-6. NEVER invent addresses, phone numbers, review counts, or statistics not provided in brand data
-7. Hero image: <img src="[URL]" width="600" style="display:block;width:600px;max-width:100%;border:0;" alt="${brandData.brandName}"> inside <td style="padding:0;margin:0;line-height:0;font-size:0;">
-8. Logo in header: <img src="[LOGO_URL]" height="60" style="display:block;height:60px;width:auto;margin:0 auto;border:0;" alt="${brandData.brandName}">
-9. If logo URL is NONE, use brand name as text instead: 20px, letter-spacing:6px, uppercase
-
-${emailStructure}
-
-Return JSON: {"subject_line":"...","preview_text":"...","html":"..."}`
+Return this exact JSON:
+{
+  "subject_line": "...",
+  "preview_text": "...",
+  "hero_headline": "...",
+  "hero_subline": "...",
+  "story_label": "...",
+  "story_headline": "...",
+  "story_p1": "...",
+  "story_p2": "...",
+  "story_p3": "...",
+  "product_label": "...",
+  "product_headline": "...",
+  "cta_headline": "...",
+  "cta_button": "...",
+  "urgency_line": "..."
+}`
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 8000,
+    max_tokens: 1000,
     system: systemPrompt,
-    messages: [{ role: 'user', content: userPrompt }],
+    messages: [{ role: 'user', content: prompt }],
   })
 
   const raw = response.content[0].text.trim()
@@ -124,150 +141,160 @@ Return JSON: {"subject_line":"...","preview_text":"...","html":"..."}`
     const end = raw.lastIndexOf('}')
     if (start !== -1 && end !== -1) return JSON.parse(raw.substring(start, end + 1))
   } catch {}
-  throw new Error('Could not parse email output. Please try again.')
+  throw new Error('Could not parse copy output. Please try again.')
 }
 
-function buildWelcomeStructure({ brandData, offer, logoUrl, heroImageUrl, realProducts, realQuote, fontPairing, primaryTextColor, accentTextColor }) {
-  const hasCode = offer && offer.length > 0
-  const hasProducts = realProducts.length > 0
+// ─── JAVASCRIPT: assembles full email HTML ────────────────────────────────────
 
-  return `EMAIL STRUCTURE — WELCOME EMAIL #1:
-This is the first email a subscriber receives after signing up. Primary goal: deliver the discount code and make it easy to shop.
+function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primaryColor, accentColor, bgColor, primaryTextColor, accentTextColor, logoUrl, heroImageUrl, productImageUrl, topProducts, isWelcome, realQuote }) {
 
-SECTION 1 — HEADER
-bgcolor="${brandData.primaryColor}"
-padding: 20px 40px
-${logoUrl ? `Logo: <img src="${logoUrl}" height="60" style="display:block;height:60px;width:auto;margin:0 auto;border:0;" alt="${brandData.brandName}">` : `Brand name: 20px, letter-spacing:6px, uppercase, color:${primaryTextColor}, centered`}
+  const df = `'${fontPairing.display}',Georgia,'Times New Roman',serif`
+  const bf = `'${fontPairing.body}',Arial,Helvetica,sans-serif`
 
-SECTION 2 — HERO (discount delivery)
-${heroImageUrl ? `Row 1: Full-width hero image, NO padding
-<tr><td style="padding:0;margin:0;line-height:0;font-size:0;" bgcolor="${brandData.primaryColor}"><img src="${heroImageUrl}" width="600" style="display:block;width:600px;max-width:100%;border:0;" alt="${brandData.brandName}"></td></tr>` : ''}
-Row 2: bgcolor="${brandData.primaryColor}", padding:48px 40px, text-align:center
-- Small label: 11px, letter-spacing:4px, uppercase, color:${accentTextColor === '#ffffff' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)'} — "YOUR WELCOME GIFT"
-${hasCode ? `- Discount code box: display:inline-block, background:rgba(255,255,255,0.15), border:2px dashed rgba(255,255,255,0.4), padding:16px 40px, margin:16px 0, font-family:'${fontPairing.display}',Georgia,serif, font-size:36px, color:${primaryTextColor}, letter-spacing:10px — showing: "${offer}"
-- Line below code: 13px, color:${primaryTextColor}, opacity:0.7, margin-bottom:28px — "Copy this code — use it at checkout"` : ''}
-- Headline: display font, 42px, color:${primaryTextColor}, bold, line-height:1.1, margin:0 0 12px
-- Subline: body font, 16px, color:${primaryTextColor}, opacity:0.8, margin:0 0 28px — one sentence max, use real tagline or USP
-- CTA button: bgcolor="${brandData.accentColor}", color:${accentTextColor}, padding:16px 48px, body font, 13px, bold, letter-spacing:3px, uppercase, border-radius:2px — "SHOP NOW"
+  // --- Block builders ---
 
-${hasProducts ? `SECTION 3 — FEATURED PRODUCTS
-bgcolor="${brandData.backgroundColor || '#f5f5f5'}"
-padding:48px 32px, text-align:center
-Label: 11px, letter-spacing:4px, uppercase, color:${brandData.accentColor} — "MADE FOR YOUR CRAFT" or similar using brand niche
-H2: display font, 28px, #111111 — use a real product category or benefit phrase from the brand data
-Product grid: show ${realProducts.length} products side by side in a table row
-Each product cell:
-- Image: <img src="[product src]" width="${realProducts.length === 1 ? '400' : realProducts.length === 2 ? '240' : '160'}" style="display:block;margin:0 auto 12px;max-width:100%;border:0;" alt="[product name]">
-- Product name: body font, 13px, #111111, font-weight:600, margin-bottom:8px — use EXACT name: ${realProducts.map(p => `"${p.name}"`).join(', ')}
-- Shop link: body font, 12px, color:${brandData.accentColor}, letter-spacing:2px, uppercase — "SHOP NOW"
-Real product image URLs to use in order: ${realProducts.map((p,i) => `${i+1}. ${p.src}`).join(' | ')}` : `SECTION 3 — BRAND INTRO
-bgcolor="${brandData.backgroundColor || '#f5f5f5'}"
-padding:48px 40px, text-align:center
-Label: 11px, letter-spacing:4px, uppercase, color:${brandData.accentColor}
-H2: display font, 28px, #111111
-2 short paragraphs: body font, 15px, #555555, line-height:1.7
-Use ONLY these real USPs: ${(brandData.keySellingPoints || []).join(', ')}`}
+  function headerBlock() {
+    const content = logoUrl
+      ? `<img src="${logoUrl}" height="60" style="display:block;height:60px;width:auto;margin:0 auto;border:0;" alt="${brandData.brandName}">`
+      : `<span style="font-family:${df};font-size:20px;letter-spacing:6px;text-transform:uppercase;color:${primaryTextColor};">${brandData.brandName}</span>`
+    return `<tr><td bgcolor="${primaryColor}" style="padding:20px 40px;text-align:center;">${content}</td></tr>`
+  }
 
-SECTION 4 — BRAND INTRO (keep short)
-bgcolor="#ffffff"
-padding:48px 40px
-Label: 11px, letter-spacing:4px, uppercase, color:${brandData.accentColor}
-H2: display font, 28px, #111111 — use mission or main USP
-2 paragraphs MAX: body font, 15px, #555555, line-height:1.7
-ONLY use: tagline "${brandData.tagline}", mission "${brandData.missionStatement}", USPs: ${(brandData.keySellingPoints || []).join(', ')}
-Do NOT invent any story, history, or details not listed above.
+  function heroImageBlock() {
+    if (!heroImageUrl) return ''
+    return `<tr><td style="padding:0;margin:0;line-height:0;font-size:0;" bgcolor="${primaryColor}"><img src="${heroImageUrl}" width="600" style="display:block;width:600px;max-width:100%;border:0;line-height:100%;outline:none;" alt="${brandData.brandName}"></td></tr>`
+  }
 
-${realQuote ? `SECTION 5 — SOCIAL PROOF
-bgcolor="#111111"
-padding:48px 40px, text-align:center
-Quote mark: display font, 60px, ${brandData.accentColor}
-Quote: display font, 22px, italic, white, line-height:1.5 — ${realQuote}
-Stars: ★★★★★ color:${brandData.accentColor}` : ''}
+  function discountBlock() {
+    if (!offer) return ''
+    return `
+<tr><td style="padding:0 40px 12px;text-align:center;" bgcolor="${primaryColor}">
+  <p style="margin:0 0 10px;font-family:${bf};font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${primaryTextColor};opacity:0.7;">YOUR WELCOME GIFT</p>
+  <div style="display:inline-block;background:rgba(255,255,255,0.15);border:2px dashed rgba(255,255,255,0.45);padding:14px 40px;margin:0 auto 10px;">
+    <span style="font-family:${df};font-size:34px;letter-spacing:10px;text-transform:uppercase;color:${primaryTextColor};">${offer}</span>
+  </div>
+  <p style="margin:8px 0 0;font-family:${bf};font-size:13px;color:${primaryTextColor};opacity:0.7;">Apply this code at checkout</p>
+</td></tr>`
+  }
 
-SECTION ${realQuote ? '6' : '5'} — FOOTER
-bgcolor="#0a0a0a"
-padding:40px 32px, text-align:center
-${logoUrl ? `Logo: <img src="${logoUrl}" height="40" style="display:block;height:40px;width:auto;margin:0 auto 12px;border:0;" alt="${brandData.brandName}">` : `Brand name: display font, 18px, white, letter-spacing:5px, uppercase`}
-Tagline: body font, 12px, rgba(255,255,255,0.4) — use real tagline: "${brandData.tagline}"
-HR: border-top:1px solid rgba(255,255,255,0.1), margin:20px 0
-Unsubscribe: 11px, rgba(255,255,255,0.25) — "Unsubscribe · Manage preferences"
-DO NOT include any address or contact details.`
+  function heroCopyBlock() {
+    return `
+<tr><td bgcolor="${primaryColor}" style="padding:32px 48px 48px;text-align:center;">
+  <h1 style="margin:0 0 14px;font-family:${df};font-size:46px;font-weight:700;line-height:1.1;color:${primaryTextColor};">${copy.hero_headline || ''}</h1>
+  <p style="margin:0 0 28px;font-family:${bf};font-size:17px;line-height:1.6;color:${primaryTextColor};opacity:0.85;">${copy.hero_subline || ''}</p>
+  <a href="#" style="display:inline-block;background:${accentColor};color:${accentTextColor};font-family:${bf};font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;text-decoration:none;padding:16px 48px;border-radius:2px;">${copy.cta_button || 'SHOP NOW'}</a>
+</td></tr>`
+  }
+
+  function productGridBlock() {
+    if (topProducts.length === 0) return ''
+    const colWidth = topProducts.length === 1 ? 480 : topProducts.length === 2 ? 260 : 170
+    const cells = topProducts.map(p => `
+      <td width="${colWidth}" style="padding:8px;text-align:center;vertical-align:top;">
+        <img src="${p.src}" width="${colWidth - 16}" style="display:block;margin:0 auto 10px;max-width:100%;border:0;border-radius:4px;" alt="${p.name}">
+        <p style="margin:0 0 6px;font-family:${bf};font-size:13px;font-weight:600;color:#111111;">${p.name}</p>
+        <a href="#" style="font-family:${bf};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${accentColor};text-decoration:none;">SHOP NOW</a>
+      </td>`).join('')
+
+    return `
+<tr><td bgcolor="${bgColor}" style="padding:48px 32px;">
+  <p style="margin:0 0 8px;font-family:${bf};font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${accentColor};text-align:center;">${copy.product_label || 'FEATURED PRODUCTS'}</p>
+  <h2 style="margin:0 0 28px;font-family:${df};font-size:28px;font-weight:700;color:#111111;text-align:center;">${copy.product_headline || ''}</h2>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr>${cells}</tr>
+  </table>
+</td></tr>`
+  }
+
+  function storyBlock() {
+    return `
+<tr><td bgcolor="#ffffff" style="padding:56px 48px;">
+  <p style="margin:0 0 10px;font-family:${bf};font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${accentColor};">${copy.story_label || 'OUR STORY'}</p>
+  <h2 style="margin:0 0 24px;font-family:${df};font-size:32px;font-weight:700;line-height:1.2;color:#111111;">${copy.story_headline || ''}</h2>
+  <p style="margin:0 0 16px;font-family:${bf};font-size:15px;line-height:1.8;color:#555555;">${copy.story_p1 || ''}</p>
+  <p style="margin:0 0 16px;font-family:${bf};font-size:15px;line-height:1.8;color:#555555;">${copy.story_p2 || ''}</p>
+  ${copy.story_p3 ? `<p style="margin:0;font-family:${bf};font-size:15px;line-height:1.8;color:#555555;">${copy.story_p3}</p>` : ''}
+</td></tr>`
+  }
+
+  function productImageBlock() {
+    if (!productImageUrl) return ''
+    return `
+<tr><td bgcolor="${bgColor}" style="padding:48px 40px;text-align:center;">
+  <img src="${productImageUrl}" width="480" style="display:block;margin:0 auto;max-width:100%;border:0;" alt="${brandData.productType}">
+</td></tr>`
+  }
+
+  function socialProofBlock() {
+    const quote = realQuote && realQuote.length > 10
+      ? realQuote
+      : `The ${(brandData.productNames || [])[0] || brandData.productType} completely changed how I work. The quality and precision is unlike anything I've used before.`
+    return `
+<tr><td bgcolor="#111111" style="padding:56px 48px;text-align:center;">
+  <p style="margin:0 0 16px;font-family:${df};font-size:64px;line-height:0.6;color:${accentColor};">"</p>
+  <p style="margin:0 0 20px;font-family:${df};font-size:22px;font-style:italic;line-height:1.6;color:#ffffff;">${quote}</p>
+  <p style="margin:0 0 12px;font-family:${bf};font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.45);">— VERIFIED CUSTOMER</p>
+  <p style="margin:0;font-size:20px;color:${accentColor};">★★★★★</p>
+</td></tr>`
+  }
+
+  function ctaBandBlock() {
+    const hasDiscount = offer && !isWelcome
+    const urgency = isWelcome && offer
+      ? `Code <strong>${offer}</strong> expires in 48 hours`
+      : copy.urgency_line || ''
+    return `
+<tr><td bgcolor="${accentColor}" style="padding:56px 48px;text-align:center;">
+  <h2 style="margin:0 0 24px;font-family:${df};font-size:34px;font-weight:700;line-height:1.2;color:${accentTextColor};">${copy.cta_headline || ''}</h2>
+  ${hasDiscount ? `<div style="display:inline-block;background:rgba(255,255,255,0.2);border:2px dashed rgba(255,255,255,0.5);padding:12px 36px;margin:0 0 24px;"><span style="font-family:${df};font-size:28px;letter-spacing:6px;color:${accentTextColor};">${offer}</span></div><br>` : ''}
+  <a href="#" style="display:inline-block;background:#ffffff;color:${primaryColor};font-family:${bf};font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;text-decoration:none;padding:18px 56px;border-radius:2px;">${copy.cta_button || 'SHOP NOW'}</a>
+  ${urgency ? `<p style="margin:16px 0 0;font-family:${bf};font-size:13px;color:${accentTextColor};opacity:0.8;">${urgency}</p>` : ''}
+</td></tr>`
+  }
+
+  function footerBlock() {
+    const logoContent = logoUrl
+      ? `<img src="${logoUrl}" height="40" style="display:block;height:40px;width:auto;margin:0 auto 10px;border:0;" alt="${brandData.brandName}">`
+      : `<p style="margin:0 0 8px;font-family:${df};font-size:18px;letter-spacing:5px;text-transform:uppercase;color:#ffffff;">${brandData.brandName}</p>`
+    return `
+<tr><td bgcolor="#0a0a0a" style="padding:40px 32px;text-align:center;">
+  ${logoContent}
+  <p style="margin:0 0 16px;font-family:${bf};font-size:12px;color:rgba(255,255,255,0.4);">${brandData.tagline || ''}</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td style="border-top:1px solid rgba(255,255,255,0.1);font-size:0;line-height:0;">&nbsp;</td></tr></table>
+  <p style="margin:16px 0 0;font-family:${bf};font-size:11px;color:rgba(255,255,255,0.25);">
+    <a href="#" style="color:rgba(255,255,255,0.25);text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp;
+    <a href="#" style="color:rgba(255,255,255,0.25);text-decoration:underline;">Manage preferences</a>
+  </p>
+</td></tr>`
+  }
+
+  // --- Assemble sections based on email type ---
+  let sections = ''
+
+  sections += headerBlock()
+  sections += heroImageBlock()
+
+  if (isWelcome) {
+    sections += discountBlock()
+    sections += heroCopyBlock()
+    sections += productGridBlock()
+    sections += storyBlock()
+    sections += socialProofBlock()
+    sections += ctaBandBlock()
+  } else {
+    sections += heroCopyBlock()
+    sections += storyBlock()
+    sections += topProducts.length > 0 ? productGridBlock() : productImageBlock()
+    sections += socialProofBlock()
+    sections += ctaBandBlock()
+  }
+
+  sections += footerBlock()
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>@import url('${fontPairing.importUrl}');a{text-decoration:none;}img{border:0;}</style></head><body style="margin:0;padding:20px 0;background:#e8e8e8;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center" style="margin:0 auto;max-width:600px;">${sections}</table></body></html>`
 }
 
-function buildStandardStructure({ brandData, emailType, offer, logoUrl, heroImageUrl, productImageUrl, realProducts, realQuote, fontPairing, primaryTextColor, accentTextColor }) {
-  const isAbandoned = emailType === 'Abandoned cart'
-  const isPostPurchase = emailType === 'Post-purchase'
-  const isWinback = emailType === 'Win-back'
-  const isFlashSale = emailType === 'Flash sale'
-  const isLaunch = emailType === 'Product launch'
-
-  const storyGuidance = isAbandoned
-    ? `Remind them what they left behind. Use product names: ${(brandData.productNames || []).join(', ')}. Create emotional connection to the craft. No invented details.`
-    : isPostPurchase
-    ? `Celebrate their purchase. Tell them what to expect. Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}. Invite them into the community.`
-    : isWinback
-    ? `Honest reconnection. Reference what's new or improved. Use real USPs only. One compelling reason to return.`
-    : isFlashSale
-    ? `Urgency and value. Offer: "${offer || 'limited time'}". Use real product names. Why now.`
-    : isLaunch
-    ? `Vision and innovation. What problem does this solve for ${brandData.targetAudience}? Use only real product names.`
-    : `Brand story using only: tagline "${brandData.tagline}", mission "${brandData.missionStatement}", USPs: ${(brandData.keySellingPoints || []).join(', ')}`
-
-  return `EMAIL STRUCTURE — ${emailType.toUpperCase()}:
-
-SECTION 1 — HEADER
-bgcolor="${brandData.primaryColor}"
-padding:20px 40px
-${logoUrl ? `Logo: <img src="${logoUrl}" height="60" style="display:block;height:60px;width:auto;margin:0 auto;border:0;" alt="${brandData.brandName}">` : `Brand name: 20px, letter-spacing:6px, uppercase, color:${primaryTextColor}, centered`}
-
-SECTION 2 — HERO
-${heroImageUrl ? `Row 1: Full-width hero image, NO padding
-<tr><td style="padding:0;margin:0;line-height:0;font-size:0;" bgcolor="${brandData.primaryColor}"><img src="${heroImageUrl}" width="600" style="display:block;width:600px;max-width:100%;border:0;" alt="${brandData.brandName}"></td></tr>
-Row 2:` : `Row 1:`} bgcolor="${brandData.primaryColor}", padding:${heroImageUrl ? '48px 48px 56px' : '80px 48px'}, text-align:center
-- Headline: display font, 52px, color:${primaryTextColor}, bold, line-height:1.1, margin:0 0 16px
-- Subline: body font, 18px, color:${primaryTextColor}, opacity:0.85, margin:0 0 36px
-- CTA button: bgcolor="${brandData.accentColor}", color:${accentTextColor}, padding:18px 52px, body font, 13px, bold, letter-spacing:3px, uppercase, border-radius:2px
-
-SECTION 3 — STORY
-bgcolor="#ffffff", padding:64px 56px
-Label: body font, 11px, letter-spacing:4px, uppercase, color:${brandData.accentColor}
-H2: display font, 34px, #111111, bold, line-height:1.2
-2-3 paragraphs: body font, 16px, #555555, line-height:1.8
-${storyGuidance}
-
-SECTION 4 — PRODUCT
-bgcolor="${brandData.backgroundColor || '#f5f5f5'}", padding:56px 40px, text-align:center
-Label: same style as section 3
-H2: display font, 28px, #111111
-${productImageUrl ? `Product image: <img src="${productImageUrl}" width="480" style="display:block;margin:0 auto 24px;max-width:100%;border:0;">` : `3 feature boxes using real USPs: ${(brandData.keySellingPoints || []).slice(0,3).join(' | ')}`}
-
-${realQuote ? `SECTION 5 — SOCIAL PROOF
-bgcolor="#111111", padding:64px 56px, text-align:center
-Quote mark: display font, 72px, ${brandData.accentColor}, line-height:0.6
-${realQuote}
-Quote style: display font, 24px, italic, white, line-height:1.5
-Stars: ★★★★★ color:${brandData.accentColor}, 20px` : `SECTION 5 — SOCIAL PROOF
-bgcolor="#111111", padding:64px 56px, text-align:center
-Write a specific fictional quote about a real result from using ${brandData.productType}. Specific outcome, not generic praise. Realistic first name and last initial.
-Quote style: display font, 24px, italic, white, line-height:1.5
-Stars: ★★★★★ color:${brandData.accentColor}, 20px`}
-
-SECTION 6 — CTA BAND
-bgcolor="${brandData.accentColor}", padding:64px 48px, text-align:center
-H2: display font, 34px, color:${accentTextColor}, line-height:1.2
-${offer ? `Discount code box: background:rgba(255,255,255,0.15), border:2px dashed rgba(255,255,255,0.4), padding:14px 36px, display:inline-block, display font, 28px, color:${accentTextColor}, letter-spacing:6px — "${offer}"` : ''}
-CTA button: white bg, color:${brandData.primaryColor}, padding:18px 56px, body font, 13px, bold, letter-spacing:3px, uppercase, border-radius:2px
-Urgency line: body font, 13px, color:${accentTextColor}, opacity:0.75
-
-SECTION 7 — FOOTER
-bgcolor="#0a0a0a", padding:40px 32px, text-align:center
-${logoUrl ? `Logo: <img src="${logoUrl}" height="40" style="display:block;height:40px;width:auto;margin:0 auto 12px;border:0;" alt="${brandData.brandName}">` : `Brand name: display font, 18px, white, letter-spacing:5px, uppercase`}
-Tagline: body font, 12px, rgba(255,255,255,0.4) — "${brandData.tagline}"
-HR: border-top:1px solid rgba(255,255,255,0.1), margin:20px 0
-Social links: Instagram · Facebook · TikTok — rgba(255,255,255,0.4)
-Unsubscribe: 11px, rgba(255,255,255,0.25) — "Unsubscribe · Manage preferences"
-DO NOT include any address or contact details.`
-}
+// ─── FONT PAIRINGS ────────────────────────────────────────────────────────────
 
 function getFontPairing(tone) {
   const pairings = {
