@@ -1,7 +1,7 @@
 /**
  * MailForge Email Generator v11
  * Fixed: accent color contrast on light backgrounds.
- * Fixed: hero image uses only Ideogram-generated image, not scraped banners.
+ * Fixed: hero image uses scraped images as fallback.
  */
 
 export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages) {
@@ -16,7 +16,7 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
     heroImageUrl = generatedImages.find(i => i.type === 'hero')?.url
     productImageUrl = generatedImages.find(i => i.type === 'product')?.url
   }
-  // Only fall back to scraped images for product section, NOT hero
+  if (!heroImageUrl && hasScrapedImages) heroImageUrl = productImages[0]?.src
   if (!productImageUrl && hasScrapedImages) productImageUrl = productImages[0]?.src
 
   const fontPairing = getFontPairing(brandData.brandTone)
@@ -49,7 +49,6 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   const bgColor = brandData.backgroundColor || '#ffffff'
   const primaryTextColor = isDark(primaryColor) ? '#ffffff' : '#111111'
   const accentTextColor = isDark(accentColor) ? '#ffffff' : '#111111'
-  // Use darkened accent for text on light/white backgrounds
   const accentForLightBg = isDark(accentColor) ? accentColor : darkenColor(accentColor)
 
   const realProducts = []
