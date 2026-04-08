@@ -41,7 +41,7 @@ export async function POST(request) {
     }).slice(0, 12)
 
     return NextResponse.json({
-      brandData,
+      brandData: { ...brandData, logoUrl: scraped.meta.ogImage || null },
       images: usableImages,
       rawMeta: scraped.meta,
       pagesScraped: scraped.pagesScraped,
