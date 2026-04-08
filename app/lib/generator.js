@@ -33,7 +33,9 @@ CRITICAL FOR WELCOME EMAIL — The discount code must appear in the HERO SECTION
 4. Then the CTA button below that
 Do NOT put another discount box in section 6 for welcome emails.` : ''
 
-  const systemPrompt = `You are a senior email designer at a top agency. Output ONLY valid JSON. Never use markdown code blocks. Your response must start with { and end with }.`
+  const systemPrompt = `You are a senior email designer at a top agency. Output ONLY valid JSON. Never use markdown code blocks. Your response must start with { and end with }.
+
+CRITICAL: Write compact HTML. No comments, no blank lines, no unnecessary whitespace between tags. Every byte counts. The entire HTML email must be complete and valid within the token limit.`
 
   const userPrompt = `Design a premium HTML email for ${brandData.brandName}.
 
@@ -152,9 +154,7 @@ Social links: Instagram · Facebook · TikTok in rgba(255,255,255,0.4)
 Unsubscribe: 11px, rgba(255,255,255,0.25)
 
 WRAP EVERYTHING in:
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>@import url('${fontPairing.importUrl}');</style></head><body style="margin:0;padding:20px 0;background:#e8e8e8;">
-[email table]
-</body></html>
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>@import url('${fontPairing.importUrl}');</style></head><body style="margin:0;padding:20px 0;background:#e8e8e8;">[email table]</body></html>
 
 CRITICAL: Replace ALL placeholder text with real brand-specific content. No generic copy.
 
@@ -162,7 +162,7 @@ Return JSON: {"subject_line":"...","preview_text":"...","html":"..."}`
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 12000,
+    max_tokens: 8000,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
   })
