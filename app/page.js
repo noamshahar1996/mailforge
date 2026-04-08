@@ -106,14 +106,14 @@ export default function MailForge() {
     setGeneratedImages([])
 
     try {
-      // Step 1: Generate AI images
+      // Step 1: Generate AI images using real product images as remix reference
       setGenStatus('Creating custom visuals with AI...')
       let aiImages = []
       try {
         const imgRes = await fetch('/api/imagine', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ brandData: brand, emailType }),
+          body: JSON.stringify({ brandData: brand, emailType, productImages: images }),
         })
         if (imgRes.ok) {
           const imgData = await imgRes.json()
@@ -277,11 +277,11 @@ export default function MailForge() {
                 ))}
               </div>
               <div style={s.field}>
-                <label style={s.label}>Offer or specific message <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>(optional)</span></label>
-                <input style={s.input} placeholder="e.g. 20% off with code WELCOME20, free shipping..." value={offer} onChange={e => setOffer(e.target.value)} />
+                <label style={s.label}>Discount code <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>(optional — will appear prominently in the email)</span></label>
+                <input style={s.input} placeholder="e.g. WELCOME20, SAVE15, FREESHIP..." value={offer} onChange={e => setOffer(e.target.value)} />
               </div>
               <div style={{ ...s.infoBox, marginTop: 8 }}>
-                ✨ MailForge will automatically generate custom AI visuals for your brand before building the email.
+                ✨ MailForge will use your real product images to generate custom AI visuals for this email.
               </div>
               <div style={s.actions}>
                 <button style={s.btnSecondary} onClick={() => setStep(2)}>← Back</button>
