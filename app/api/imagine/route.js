@@ -18,30 +18,45 @@ async function generateBrandImages(brandData, emailType, productImages) {
   const apiKey = process.env.IDEOGRAM_API_KEY
   if (!apiKey) throw new Error('IDEOGRAM_API_KEY not configured')
 
-  const prompt = buildHeroPrompt(brandData, emailType)
-  
+  // Find best product image to remix — prefer ones with real product names
+  const referenceImage = productImages.find(img => img.alt && img.alt.trim().length > 2)
+    || productImages[0]
+
+  if (!referenceImage) {
+    console.log('No reference image found, skipping generation')
+    return []
+  }
+
   try {
-    const res = await fetch('https://api.ideogram.ai/generate', {
+    // Fetch the product image as binary
+    const imageRes = await fetch(referenceImage.src, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MailForgeBot/1.0)' }
+    })
+    if (!imageRes.ok) throw new Error(`Could not fetch image: ${imageRes.status}`)
+    
+    const imageBuffer = await imageRes.arrayBuffer()
+    const imageBlob = new Blob([imageBuffer], { type: 'image/jpeg' })
+    const prompt = buildRemixPrompt(brandData, emailType)
+
+    // Build multipart form for Ideogram remix
+    const formData = new FormData()
+    formData.append('image_file', imageBlob, 'product.jpg')
+    formData.append('prompt', prompt)
+    formData.append('aspect_ratio', 'ASPECT_16_9')
+    formData.append('model', 'V_2')
+    formData.append('magic_prompt_option', 'OFF')
+    formData.append('style_type', 'REALISTIC')
+    formData.append('image_weight', '50')
+
+    const res = await fetch('https://api.ideogram.ai/remix', {
       method: 'POST',
-      headers: {
-        'Api-Key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        image_request: {
-          prompt,
-          negative_prompt: 'text, words, letters, watermark, logo, blurry, low quality, distorted, people, faces, humans',
-          aspect_ratio: 'ASPECT_16_9',
-          model: 'V_2',
-          magic_prompt_option: 'OFF',
-          style_type: 'REALISTIC',
-        }
-      }),
+      headers: { 'Api-Key': apiKey },
+      body: formData,
     })
 
     if (!res.ok) {
       const err = await res.text()
-      console.error('Ideogram error:', err)
+      console.error('Ideogram remix error:', err)
       return []
     }
 
@@ -55,29 +70,24 @@ async function generateBrandImages(brandData, emailType, productImages) {
   }
 }
 
-function buildHeroPrompt(brand, emailType) {
-  const { niche, brandTone, keySellingPoints, productNames } = brand
-
-  const topProducts = (productNames || []).slice(0, 3).join(', ')
-  const usp = (keySellingPoints || [])[0] || ''
+function buildRemixPrompt(brand, emailType) {
+  const { niche, brandTone } = brand
 
   const moodMap = {
     'Luxury & refined': 'dramatic moody studio lighting, dark sophisticated background, premium editorial photography',
-    'Bold & direct': 'bold high contrast lighting, dynamic composition, striking commercial photography',
-    'Warm & friendly': 'warm golden natural light, rustic wooden workbench, cozy workshop atmosphere',
+    'Bold & direct': 'bold high contrast lighting, dynamic powerful composition, striking commercial photography',
+    'Warm & friendly': 'warm golden natural light, rustic wooden workbench, cozy authentic workshop atmosphere',
     'Playful & fun': 'bright colorful lighting, clean background, fun energetic composition',
     'Scientific & trusted': 'clean precise lighting, minimal white background, technical product photography',
-    'Minimalist': 'soft diffused light, vast negative space, single surface, minimal composition',
+    'Minimalist': 'soft diffused light, vast negative space, minimal clean composition',
   }
   const mood = moodMap[brandTone] || moodMap['Warm & friendly']
 
   return [
-    `Professional product lineup photography for a ${niche} brand.`,
-    topProducts ? `Products shown: ${topProducts}, carefully arranged on a wooden workbench.` : '',
+    `Transform this product into a premium lifestyle hero image for a ${niche} brand.`,
     `${mood}.`,
-    usp ? `Style conveys: ${usp}.` : '',
-    `Clean hero image for email marketing, 16:9 wide format.`,
-    `No text, no people, no faces, no logos. Pure product and environment only.`,
-    `Commercial photography quality, sharp focus on products.`,
-  ].filter(Boolean).join(' ')
+    `Show the product clearly as the hero of the scene.`,
+    `Wide 16:9 format. No text, no people, no faces, no logos, no watermarks.`,
+    `Professional commercial photography quality. Clean and immersive.`,
+  ].join(' ')
 }
