@@ -21,8 +21,13 @@ async function generateBrandImages(brandData, emailType, productImages) {
     return []
   }
 
-  const referenceImage = productImages.find(img => img.alt && img.alt.trim().length > 2)
-    || productImages[0]
+  // Skip banners and promotional images, prefer clean product shots
+  const referenceImage = productImages.find(img => {
+    if (!img.alt || img.alt.trim().length < 2) return false
+    const src = img.src.toLowerCase()
+    if (src.includes('hero') || src.includes('banner') || src.includes('phj')) return false
+    return true
+  }) || productImages.find(img => img.alt && img.alt.trim().length > 2) || productImages[0]
 
   if (!referenceImage) return []
 
@@ -39,10 +44,10 @@ async function generateBrandImages(brandData, emailType, productImages) {
         prompt,
         image_url: referenceImage.src,
         image_size: 'landscape_16_9',
-        image_weight: 50,
+        image_weight: 30,
         style_type: 'REALISTIC',
         magic_prompt_option: 'OFF',
-        negative_prompt: 'text, words, letters, watermark, logo, blurry, low quality, people, faces',
+        negative_prompt: 'text, words, letters, watermark, logo, blurry, low quality, people, faces, banners, promotional',
       }),
     })
 
@@ -63,7 +68,10 @@ async function generateBrandImages(brandData, emailType, productImages) {
 }
 
 function buildRemixPrompt(brand, emailType) {
-  const { niche, brandTone } = brand
+  const { niche, brandTone, productNames, keySellingPoints } = brand
+
+  const topProduct = (productNames || [])[0] || ''
+  const usp = (keySellingPoints || [])[0] || ''
 
   const moodMap = {
     'Luxury & refined': 'dramatic moody studio lighting, dark sophisticated background, premium editorial photography',
@@ -76,10 +84,12 @@ function buildRemixPrompt(brand, emailType) {
   const mood = moodMap[brandTone] || moodMap['Warm & friendly']
 
   return [
-    `Transform this product into a premium lifestyle hero image for a ${niche} brand.`,
+    `Premium lifestyle product photography for a ${niche} brand.`,
+    topProduct ? `Featured product: ${topProduct}.` : '',
     `${mood}.`,
-    `Show the product clearly as the hero of the scene on a wooden workbench.`,
-    `Wide 16:9 format. No text, no people, no faces, no logos, no watermarks.`,
-    `Professional commercial photography quality.`,
-  ].join(' ')
+    `Product sits on a clean wooden workbench surrounded by wood shavings and craft tools.`,
+    `No text overlays, no promotional banners, no people, no faces, no logos.`,
+    `Wide 16:9 cinematic format. Sharp focus on product. Professional commercial photography.`,
+    usp ? `Visual mood conveys: ${usp}.` : '',
+  ].filter(Boolean).join(' ')
 }
