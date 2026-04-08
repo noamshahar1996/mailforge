@@ -6,7 +6,6 @@ export async function POST(request) {
   try {
     const { brandData, emailType } = await request.json()
     if (!brandData) return NextResponse.json({ error: 'brandData required' }, { status: 400 })
-
     const images = await generateBrandImages(brandData, emailType)
     return NextResponse.json({ images })
   } catch (err) {
@@ -19,7 +18,6 @@ async function generateBrandImages(brandData, emailType) {
   const apiKey = process.env.IDEOGRAM_API_KEY
   if (!apiKey) throw new Error('IDEOGRAM_API_KEY not configured')
 
-  // Build image prompts based on brand
   const prompts = buildImagePrompts(brandData, emailType)
   const results = []
 
@@ -34,6 +32,7 @@ async function generateBrandImages(brandData, emailType) {
         body: JSON.stringify({
           image_request: {
             prompt: prompt.prompt,
+            negative_prompt: prompt.negative_prompt || '',
             aspect_ratio: prompt.aspect_ratio || 'ASPECT_16_9',
             model: 'V_2',
             magic_prompt_option: 'AUTO',
@@ -62,37 +61,115 @@ async function generateBrandImages(brandData, emailType) {
 }
 
 function buildImagePrompts(brand, emailType) {
-  const { brandName, niche, productType, brandTone, primaryColor, targetAudience, keySellingPoints } = brand
+  const {
+    brandName,
+    niche,
+    productType,
+    brandTone,
+    primaryColor,
+    accentColor,
+    targetAudience,
+    keySellingPoints,
+    productNames,
+  } = brand
+
+  // Pick the top 2 most specific product names
+  const topProducts = (productNames || []).slice(0, 2)
+  const primaryProduct = topProducts[0] || productType
+  const secondProduct = topProducts[1] || ''
   const usp = (keySellingPoints || [])[0] || ''
 
-  // Determine visual style from brand tone
+  // Visual style from brand tone
   const styleMap = {
-    'Luxury & refined': { style: 'REALISTIC', mood: 'dark moody luxury, dramatic lighting, editorial photography, black marble, gold accents, sophisticated' },
-    'Bold & direct': { style: 'REALISTIC', mood: 'bold vibrant, high contrast, dynamic energy, powerful composition, striking colors' },
-    'Warm & friendly': { style: 'REALISTIC', mood: 'warm natural light, inviting lifestyle, authentic people, golden hour, approachable and genuine' },
-    'Playful & fun': { style: 'RENDER_3D', mood: 'colorful vibrant, playful 3D render, fun composition, bright saturated colors, energetic' },
-    'Scientific & trusted': { style: 'REALISTIC', mood: 'clean clinical white, precise scientific aesthetic, trustworthy professional, minimal sharp' },
-    'Minimalist': { style: 'REALISTIC', mood: 'ultra minimal, vast negative space, single hero element, muted tones, zen-like calm' },
+    'Luxury & refined': {
+      style: 'REALISTIC',
+      lighting: 'dramatic moody studio lighting, dark background, gold accents',
+      setting: 'luxury editorial setting, dark marble surface, sophisticated composition',
+      quality: 'high-end commercial photography, fashion magazine quality',
+    },
+    'Bold & direct': {
+      style: 'REALISTIC',
+      lighting: 'bold high contrast lighting, strong shadows, dynamic angle',
+      setting: 'clean industrial setting, bold composition, powerful visual energy',
+      quality: 'advertising campaign photography, striking commercial quality',
+    },
+    'Warm & friendly': {
+      style: 'REALISTIC',
+      lighting: 'warm golden natural light, soft shadows, inviting atmosphere',
+      setting: 'authentic lifestyle setting, natural wood surfaces, human hands in frame',
+      quality: 'lifestyle photography, warm and approachable, editorial quality',
+    },
+    'Playful & fun': {
+      style: 'RENDER_3D',
+      lighting: 'bright colorful lighting, vibrant saturated colors, fun energy',
+      setting: 'clean colorful background, playful composition, energetic layout',
+      quality: '3D render commercial quality, vibrant and eye-catching',
+    },
+    'Scientific & trusted': {
+      style: 'REALISTIC',
+      lighting: 'clean clinical white lighting, precise shadows, technical feel',
+      setting: 'minimal white background, precise product placement, clean and professional',
+      quality: 'technical product photography, clinical precision, trustworthy',
+    },
+    'Minimalist': {
+      style: 'REALISTIC',
+      lighting: 'soft diffused light, minimal shadows, calm atmosphere',
+      setting: 'vast negative space, single surface, zen-like minimal composition',
+      quality: 'ultra-minimal commercial photography, elegant simplicity',
+    },
   }
 
-  const { style, mood } = styleMap[brandTone] || styleMap['Warm & friendly']
+  const visual = styleMap[brandTone] || styleMap['Warm & friendly']
+
+  // Email type context
+  const emailContextMap = {
+    'Welcome email': 'brand introduction, inviting and warm, showing the product in use',
+    'Abandoned cart': 'product close-up, desire-inducing, showing craftsmanship detail',
+    'Post-purchase': 'product in use, satisfied customer, successful outcome',
+    'Flash sale': 'urgent and exciting, product prominently featured, sale energy',
+    'Win-back': 'nostalgic and inviting, product reminder, emotional reconnection',
+    'Product launch': 'dramatic reveal, hero product shot, excitement and newness',
+  }
+  const emailContext = emailContextMap[emailType] || 'lifestyle product shot'
+
+  const negativePrompt = 'text, words, letters, watermark, logo, blurry, low quality, distorted, ugly, bad composition, generic stock photo'
 
   const prompts = []
 
-  // Hero image — full width email banner
+  // HERO IMAGE — 16:9, shows primary product in lifestyle context
   prompts.push({
     type: 'hero',
     aspect_ratio: 'ASPECT_16_9',
-    style,
-    prompt: `Email marketing hero banner for ${brandName}, ${niche} brand. ${productType}. ${mood}. Professional email design visual, 600px wide banner. Target audience: ${targetAudience}. ${usp}. No text overlay. Photorealistic product lifestyle shot. High end commercial photography quality.`
+    style: visual.style,
+    negative_prompt: negativePrompt,
+    prompt: [
+      `Professional email marketing hero banner for ${brandName}.`,
+      `Product featured: ${primaryProduct}${secondProduct ? ` alongside ${secondProduct}` : ''}.`,
+      `${niche} brand targeting ${targetAudience}.`,
+      `Scene: ${emailContext}.`,
+      `Lighting: ${visual.lighting}.`,
+      `Setting: ${visual.setting}.`,
+      `Key detail: ${usp}.`,
+      `${visual.quality}.`,
+      `Wide 16:9 banner format. No text overlay. No logos. Photorealistic.`,
+    ].join(' ')
   })
 
-  // Product/lifestyle image — square
+  // PRODUCT IMAGE — 1:1, tight on the specific product
   prompts.push({
     type: 'product',
     aspect_ratio: 'ASPECT_1_1',
-    style,
-    prompt: `Product lifestyle photo for ${brandName}, ${niche}. ${productType} shown beautifully. ${mood}. Clean background, professional product photography. Commercial quality. No text. Perfect for email marketing.`
+    style: visual.style,
+    negative_prompt: negativePrompt,
+    prompt: [
+      `Product photography for ${brandName}.`,
+      `Subject: ${primaryProduct} — a ${productType} for ${targetAudience}.`,
+      `${visual.lighting}.`,
+      `Clean background, tight composition focused on the product itself.`,
+      `Show the product being used or held by hands in a ${niche.toLowerCase()} context.`,
+      `${visual.quality}.`,
+      `Square format. No text. No logos. Commercial product photography.`,
+    ].join(' ')
   })
 
   return prompts
