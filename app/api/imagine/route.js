@@ -4,9 +4,9 @@ export const maxDuration = 60
 
 export async function POST(request) {
   try {
-    const { brandData, emailType } = await request.json()
+    const { brandData, emailType, productImages } = await request.json()
     if (!brandData) return NextResponse.json({ error: 'brandData required' }, { status: 400 })
-    const images = await generateBrandImages(brandData, emailType)
+    const images = await generateBrandImages(brandData, emailType, productImages || [])
     return NextResponse.json({ images })
   } catch (err) {
     console.error('Image generation error:', err)
@@ -14,163 +14,164 @@ export async function POST(request) {
   }
 }
 
-async function generateBrandImages(brandData, emailType) {
+async function generateBrandImages(brandData, emailType, productImages) {
   const apiKey = process.env.IDEOGRAM_API_KEY
   if (!apiKey) throw new Error('IDEOGRAM_API_KEY not configured')
 
-  const prompts = buildImagePrompts(brandData, emailType)
+  // Find the best product image to use as remix reference
+  // Priority: images with real product alt text, not promotional banners
+  const referenceImage = findBestReferenceImage(productImages)
+
   const results = []
 
-  for (const prompt of prompts) {
-    try {
-      const res = await fetch('https://api.ideogram.ai/generate', {
-        method: 'POST',
-        headers: {
-          'Api-Key': apiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image_request: {
-            prompt: prompt.prompt,
-            negative_prompt: prompt.negative_prompt || '',
-            aspect_ratio: prompt.aspect_ratio || 'ASPECT_16_9',
-            model: 'V_2',
-            magic_prompt_option: 'AUTO',
-            style_type: prompt.style || 'REALISTIC',
-          }
-        }),
-      })
+  // HERO IMAGE — remix if we have a product reference, otherwise generate
+  try {
+    const heroResult = referenceImage
+      ? await remixImage(apiKey, referenceImage, buildHeroRemixPrompt(brandData, emailType), 'ASPECT_16_9')
+      : await generateImage(apiKey, buildHeroGeneratePrompt(brandData, emailType), 'ASPECT_16_9')
 
-      if (!res.ok) {
-        const err = await res.text()
-        console.error('Ideogram error:', err)
-        continue
-      }
-
-      const data = await res.json()
-      const imageUrl = data?.data?.[0]?.url
-      if (imageUrl) {
-        results.push({ url: imageUrl, type: prompt.type })
-      }
-    } catch (err) {
-      console.error('Image generation failed for prompt:', err)
-    }
+    if (heroResult) results.push({ url: heroResult, type: 'hero' })
+  } catch (err) {
+    console.error('Hero image failed:', err)
   }
 
   return results
 }
 
-function buildImagePrompts(brand, emailType) {
-  const {
-    brandName,
-    niche,
-    productType,
-    brandTone,
-    primaryColor,
-    accentColor,
-    targetAudience,
-    keySellingPoints,
-    productNames,
-  } = brand
+function findBestReferenceImage(productImages) {
+  if (!productImages || productImages.length === 0) return null
 
-  // Pick the top 2 most specific product names
-  const topProducts = (productNames || []).slice(0, 2)
-  const primaryProduct = topProducts[0] || productType
-  const secondProduct = topProducts[1] || ''
+  // Filter to images that are likely real product photos
+  // Exclude: no alt text, gift cards, logos, tracking pixels
+  const candidates = productImages.filter(img => {
+    if (!img.alt || img.alt.trim().length < 3) return false
+    const alt = img.alt.toLowerCase()
+    const src = img.src.toLowerCase()
+    if (alt.includes('gift card') || alt.includes('logo') || alt.includes('icon')) return false
+    if (src.includes('gift') || src.includes('logo') || src.includes('icon') || src.includes('favicon')) return false
+    return true
+  })
+
+  return candidates.length > 0 ? candidates[0] : null
+}
+
+async function remixImage(apiKey, referenceImage, prompt, aspectRatio) {
+  // Fetch the product image and convert to binary for Ideogram Remix
+  const imageRes = await fetch(referenceImage.src)
+  if (!imageRes.ok) throw new Error(`Could not fetch reference image: ${imageRes.status}`)
+  const imageBuffer = await imageRes.arrayBuffer()
+  const imageBlob = new Blob([imageBuffer], { type: 'image/jpeg' })
+
+  // Build multipart form data for Remix endpoint
+  const formData = new FormData()
+  formData.append('image_file', imageBlob, 'product.jpg')
+  formData.append('prompt', prompt)
+  formData.append('aspect_ratio', aspectRatio)
+  formData.append('model', 'V_2')
+  formData.append('magic_prompt_option', 'OFF')
+  formData.append('style_type', 'REALISTIC')
+  formData.append('image_weight', '40') // 40% original, 60% prompt — good balance
+
+  const res = await fetch('https://api.ideogram.ai/remix', {
+    method: 'POST',
+    headers: { 'Api-Key': apiKey },
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    console.error('Ideogram remix error:', err)
+    return null
+  }
+
+  const data = await res.json()
+  return data?.data?.[0]?.url || null
+}
+
+async function generateImage(apiKey, prompt, aspectRatio) {
+  const res = await fetch('https://api.ideogram.ai/generate', {
+    method: 'POST',
+    headers: {
+      'Api-Key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      image_request: {
+        prompt,
+        negative_prompt: 'text, words, letters, watermark, logo, blurry, low quality, generic stock photo',
+        aspect_ratio: aspectRatio,
+        model: 'V_2',
+        magic_prompt_option: 'OFF',
+        style_type: 'REALISTIC',
+      }
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    console.error('Ideogram generate error:', err)
+    return null
+  }
+
+  const data = await res.json()
+  return data?.data?.[0]?.url || null
+}
+
+function buildHeroRemixPrompt(brand, emailType) {
+  const { brandName, niche, targetAudience, brandTone, keySellingPoints } = brand
   const usp = (keySellingPoints || [])[0] || ''
 
-  // Visual style from brand tone
-  const styleMap = {
-    'Luxury & refined': {
-      style: 'REALISTIC',
-      lighting: 'dramatic moody studio lighting, dark background, gold accents',
-      setting: 'luxury editorial setting, dark marble surface, sophisticated composition',
-      quality: 'high-end commercial photography, fashion magazine quality',
-    },
-    'Bold & direct': {
-      style: 'REALISTIC',
-      lighting: 'bold high contrast lighting, strong shadows, dynamic angle',
-      setting: 'clean industrial setting, bold composition, powerful visual energy',
-      quality: 'advertising campaign photography, striking commercial quality',
-    },
-    'Warm & friendly': {
-      style: 'REALISTIC',
-      lighting: 'warm golden natural light, soft shadows, inviting atmosphere',
-      setting: 'authentic lifestyle setting, natural wood surfaces, human hands in frame',
-      quality: 'lifestyle photography, warm and approachable, editorial quality',
-    },
-    'Playful & fun': {
-      style: 'RENDER_3D',
-      lighting: 'bright colorful lighting, vibrant saturated colors, fun energy',
-      setting: 'clean colorful background, playful composition, energetic layout',
-      quality: '3D render commercial quality, vibrant and eye-catching',
-    },
-    'Scientific & trusted': {
-      style: 'REALISTIC',
-      lighting: 'clean clinical white lighting, precise shadows, technical feel',
-      setting: 'minimal white background, precise product placement, clean and professional',
-      quality: 'technical product photography, clinical precision, trustworthy',
-    },
-    'Minimalist': {
-      style: 'REALISTIC',
-      lighting: 'soft diffused light, minimal shadows, calm atmosphere',
-      setting: 'vast negative space, single surface, zen-like minimal composition',
-      quality: 'ultra-minimal commercial photography, elegant simplicity',
-    },
+  const moodMap = {
+    'Luxury & refined': 'dramatic moody studio lighting, dark sophisticated background, editorial photography',
+    'Bold & direct': 'bold high contrast lighting, dynamic powerful composition, striking commercial photography',
+    'Warm & friendly': 'warm golden natural workshop lighting, authentic hands-on setting, inviting atmosphere',
+    'Playful & fun': 'bright colorful lighting, fun energetic composition, vibrant saturated colors',
+    'Scientific & trusted': 'clean precise lighting, minimal professional setting, technical photography',
+    'Minimalist': 'soft diffused light, minimal clean background, elegant simple composition',
   }
+  const mood = moodMap[brandTone] || moodMap['Warm & friendly']
 
-  const visual = styleMap[brandTone] || styleMap['Warm & friendly']
-
-  // Email type context
   const emailContextMap = {
-    'Welcome email': 'brand introduction, inviting and warm, showing the product in use',
-    'Abandoned cart': 'product close-up, desire-inducing, showing craftsmanship detail',
-    'Post-purchase': 'product in use, satisfied customer, successful outcome',
-    'Flash sale': 'urgent and exciting, product prominently featured, sale energy',
-    'Win-back': 'nostalgic and inviting, product reminder, emotional reconnection',
-    'Product launch': 'dramatic reveal, hero product shot, excitement and newness',
+    'Welcome email': 'welcoming lifestyle scene, product being used by craftsperson',
+    'Abandoned cart': 'close-up product detail, desire-inducing, showcasing craftsmanship',
+    'Post-purchase': 'product in use, successful outcome, satisfied craftsperson',
+    'Flash sale': 'product prominently featured, exciting dynamic composition',
+    'Win-back': 'warm inviting product shot, nostalgic workshop setting',
+    'Product launch': 'dramatic hero product reveal, premium presentation',
   }
-  const emailContext = emailContextMap[emailType] || 'lifestyle product shot'
+  const context = emailContextMap[emailType] || 'professional lifestyle product shot'
 
-  const negativePrompt = 'text, words, letters, watermark, logo, blurry, low quality, distorted, ugly, bad composition, generic stock photo'
+  return [
+    `Professional email marketing hero banner for ${brandName}, a ${niche} brand.`,
+    `Transform this product into a premium lifestyle photograph.`,
+    `Scene: ${context} for ${targetAudience}.`,
+    `${mood}.`,
+    `${usp}.`,
+    `Wide 16:9 banner format. No text overlay. No logos. No watermarks. Photorealistic commercial photography quality.`,
+  ].join(' ')
+}
 
-  const prompts = []
+function buildHeroGeneratePrompt(brand, emailType) {
+  const { brandName, niche, productType, brandTone, targetAudience, keySellingPoints, productNames } = brand
+  const topProduct = (productNames || [])[0] || productType
+  const usp = (keySellingPoints || [])[0] || ''
 
-  // HERO IMAGE — 16:9, shows primary product in lifestyle context
-  prompts.push({
-    type: 'hero',
-    aspect_ratio: 'ASPECT_16_9',
-    style: visual.style,
-    negative_prompt: negativePrompt,
-    prompt: [
-      `Professional email marketing hero banner for ${brandName}.`,
-      `Product featured: ${primaryProduct}${secondProduct ? ` alongside ${secondProduct}` : ''}.`,
-      `${niche} brand targeting ${targetAudience}.`,
-      `Scene: ${emailContext}.`,
-      `Lighting: ${visual.lighting}.`,
-      `Setting: ${visual.setting}.`,
-      `Key detail: ${usp}.`,
-      `${visual.quality}.`,
-      `Wide 16:9 banner format. No text overlay. No logos. Photorealistic.`,
-    ].join(' ')
-  })
+  const moodMap = {
+    'Luxury & refined': 'dramatic moody studio lighting, dark sophisticated background, editorial photography',
+    'Bold & direct': 'bold high contrast lighting, dynamic powerful composition, striking commercial photography',
+    'Warm & friendly': 'warm golden natural workshop lighting, authentic hands-on setting, inviting atmosphere',
+    'Playful & fun': 'bright colorful lighting, fun energetic composition, vibrant saturated colors',
+    'Scientific & trusted': 'clean precise lighting, minimal professional setting, technical photography',
+    'Minimalist': 'soft diffused light, minimal clean background, elegant simple composition',
+  }
+  const mood = moodMap[brandTone] || moodMap['Warm & friendly']
 
-  // PRODUCT IMAGE — 1:1, tight on the specific product
-  prompts.push({
-    type: 'product',
-    aspect_ratio: 'ASPECT_1_1',
-    style: visual.style,
-    negative_prompt: negativePrompt,
-    prompt: [
-      `Product photography for ${brandName}.`,
-      `Subject: ${primaryProduct} — a ${productType} for ${targetAudience}.`,
-      `${visual.lighting}.`,
-      `Clean background, tight composition focused on the product itself.`,
-      `Show the product being used or held by hands in a ${niche.toLowerCase()} context.`,
-      `${visual.quality}.`,
-      `Square format. No text. No logos. Commercial product photography.`,
-    ].join(' ')
-  })
-
-  return prompts
+  return [
+    `Professional email marketing hero banner for ${brandName}, a ${niche} brand.`,
+    `Featured product: ${topProduct}.`,
+    `Scene: ${targetAudience} using the product in a professional setting.`,
+    `${mood}.`,
+    `${usp}.`,
+    `Wide 16:9 banner format. No text overlay. No logos. Photorealistic commercial photography quality.`,
+  ].join(' ')
 }
