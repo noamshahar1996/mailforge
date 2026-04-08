@@ -1,6 +1,6 @@
 /**
- * MailForge Email Generator v6
- * Fixed full-width images, improved layout quality.
+ * MailForge Email Generator v7
+ * Added real testimonial quotes in section 5.
  */
 export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages) {
 
@@ -18,6 +18,10 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   if (!productImageUrl && hasScrapedImages && productImages.length > 1) productImageUrl = productImages[1]?.src
 
   const fontPairing = getFontPairing(brandData.brandTone)
+
+  const realQuote = brandData.bestTestimonialQuote && brandData.bestTestimonialQuote.length > 10
+    ? `USE THIS REAL CUSTOMER QUOTE EXACTLY AS WRITTEN: "${brandData.bestTestimonialQuote}"`
+    : `Write a highly specific fictional quote about a real result the customer got from using ${brandData.productType}. Make it feel earned and specific, not generic. Example: not "Great product!" but "My chisels now hold an edge 3x longer — I sharpened them once last month and they're still razor sharp."`
 
   const systemPrompt = `You are a senior email designer at a top agency. Output ONLY valid JSON. Never use markdown code blocks. Your response must start with { and end with }.`
 
@@ -111,8 +115,9 @@ SECTION 5 - SOCIAL PROOF (DARK)
 bgcolor="#111111"
 padding:64px 56px, text-align:center
 Opening quote mark: display font, 72px, ${brandData.accentColor}, line-height:0.6
-Quote: display font, 26px, italic, white, line-height:1.5 — make it SPECIFIC to the product result
-Attribution: body font, 12px, letter-spacing:3px, uppercase, rgba(255,255,255,0.5)
+${realQuote}
+Quote style: display font, 26px, italic, white, line-height:1.5
+Attribution: body font, 12px, letter-spacing:3px, uppercase, rgba(255,255,255,0.5) — use a realistic first name and last initial
 Stars: ★★★★★ in ${brandData.accentColor}, 22px
 Rating summary line: body font, 13px, rgba(255,255,255,0.4)
 
