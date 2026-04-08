@@ -11,7 +11,6 @@ export async function POST(request) {
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-    // Step 1: Scrape
     let scraped
     try {
       scraped = await scrapeWebsite(url)
@@ -19,7 +18,6 @@ export async function POST(request) {
       return NextResponse.json({ error: `Scraping failed: ${err.message}` }, { status: 422 })
     }
 
-    // Step 2: AI analysis
     let brandData
     try {
       brandData = await analyzeBrandWithAI(scraped, anthropic)
@@ -27,22 +25,27 @@ export async function POST(request) {
       return NextResponse.json({ error: `Brand analysis failed: ${err.message}` }, { status: 500 })
     }
 
-    // Filter usable images
+    // Homepage hero: first image with no alt text (usually the hero banner)
+    const homepageHero = scraped.images.find(img => {
+      const src = img.src.toLowerCase()
+      if (!src.includes('.jpg') && !src.includes('.jpeg') && !src.includes('.png') && !src.includes('.webp')) return false
+      if (src.includes('logo') || src.includes('icon') || src.includes('favicon')) return false
+      return true
+    }) || null
+
+    // Product images: images with real alt text (product names)
     const usableImages = scraped.images.filter(img => {
       const src = img.src.toLowerCase()
-      return (
-        !src.includes('logo') &&
-        !src.includes('icon') &&
-        !src.includes('favicon') &&
-        !src.includes('pixel') &&
-        !src.includes('tracking') &&
-        (src.includes('.jpg') || src.includes('.jpeg') || src.includes('.png') || src.includes('.webp'))
-      )
+      if (!img.alt || img.alt.trim().length < 2) return false
+      if (src.includes('logo') || src.includes('icon') || src.includes('favicon') || src.includes('pixel') || src.includes('tracking')) return false
+      if (!src.includes('.jpg') && !src.includes('.jpeg') && !src.includes('.png') && !src.includes('.webp')) return false
+      return true
     }).slice(0, 12)
 
     return NextResponse.json({
       brandData: { ...brandData, logoUrl: scraped.meta.ogImage || null },
       images: usableImages,
+      heroImage: homepageHero,
       rawMeta: scraped.meta,
       pagesScraped: scraped.pagesScraped,
       testimonials: scraped.testimonials,
