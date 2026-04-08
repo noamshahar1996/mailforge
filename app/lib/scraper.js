@@ -1,19 +1,12 @@
 import * as cheerio from 'cheerio'
 
-/**
- * Fetches and parses a website URL.
- * Returns raw extracted data: text, images, colors, meta.
- * Designed to work on Vercel serverless (no Playwright needed).
- */
-export async function scrapeWebsite(url) {
-  const normalizedUrl = url.startsWith('http') ? url : `https://${url}`
+const FETCH_TIMEOUT_MS = 10000
 
+async function fetchPage(url) {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 12000)
-
-  let html
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
   try {
-    const res = await fetch(normalizedUrl, {
+    const res = await fetch(url, {
       signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; MailForgeBot/1.0)',
@@ -22,107 +15,174 @@ export async function scrapeWebsite(url) {
       },
     })
     clearTimeout(timeout)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    html = await res.text()
-  } catch (err) {
+    if (!res.ok) return null
+    return await res.text()
+  } catch {
     clearTimeout(timeout)
-    throw new Error(`Could not fetch website: ${err.message}`)
+    return null
   }
+}
 
+function parsePage(html, baseUrl) {
   const $ = cheerio.load(html)
 
-  // --- Meta ---
-  const title = $('title').first().text().trim() || ''
-  const metaDesc = $('meta[name="description"]').attr('content') || ''
-  const ogTitle = $('meta[property="og:title"]').attr('content') || ''
-  const ogDesc = $('meta[property="og:description"]').attr('content') || ''
-  const ogImage = $('meta[property="og:image"]').attr('content') || ''
-  const twitterImage = $('meta[name="twitter:image"]').attr('content') || ''
+  const h1s = $('h1').map((_, el) => $(el).text().trim()).get().filter(Boolean)
+  const h2s = $('h2').map((_, el) => $(el).text().trim()).get().filter(Boolean)
+  const h3s = $('h3').map((_, el) => $(el).text().trim()).get().filter(Boolean)
 
-  // --- Headings ---
-  const h1s = $('h1').map((_, el) => $(el).text().trim()).get().filter(Boolean).slice(0, 5)
-  const h2s = $('h2').map((_, el) => $(el).text().trim()).get().filter(Boolean).slice(0, 8)
-  const h3s = $('h3').map((_, el) => $(el).text().trim()).get().filter(Boolean).slice(0, 8)
-
-  // --- Body text paragraphs ---
-  const paragraphs = $('p').map((_, el) => $(el).text().trim()).get()
+  const paragraphs = $('p')
+    .map((_, el) => $(el).text().trim())
+    .get()
     .filter(t => t.length > 40)
-    .slice(0, 15)
 
-  // --- Images (src + alt) ---
   const images = []
   $('img').each((_, el) => {
     const src = $(el).attr('src') || $(el).attr('data-src') || ''
     const alt = $(el).attr('alt') || ''
     if (src && !src.startsWith('data:') && src.length > 5) {
-      // Resolve relative URLs
-      let fullSrc = src
       try {
-        fullSrc = new URL(src, normalizedUrl).href
+        images.push({ src: new URL(src, baseUrl).href, alt })
       } catch {}
-      images.push({ src: fullSrc, alt })
     }
   })
 
-  // --- Colors from inline styles + style tags ---
   const colorSet = new Set()
   const colorRegex = /#([0-9a-fA-F]{3,6})\b/g
   const styleContent = $('style').map((_, el) => $(el).html()).get().join(' ')
   let match
-  while ((match = colorRegex.exec(styleContent)) !== null) {
-    colorSet.add('#' + match[1])
-  }
-  // Also grab from inline style attributes
+  while ((match = colorRegex.exec(styleContent)) !== null) colorSet.add('#' + match[1])
   $('[style]').each((_, el) => {
     const style = $(el).attr('style') || ''
     let m
     const re = /#([0-9a-fA-F]{3,6})\b/g
     while ((m = re.exec(style)) !== null) colorSet.add('#' + m[1])
   })
-  const colors = [...colorSet]
-    .filter(c => c.length === 4 || c.length === 7) // only valid hex
-    .slice(0, 20)
 
-  // --- Buttons / CTAs ---
-  const ctas = $('button, a.btn, a[class*="button"], a[class*="cta"]')
-    .map((_, el) => $(el).text().trim())
-    .get()
-    .filter(t => t.length > 1 && t.length < 50)
-    .slice(0, 10)
-
-  // --- Nav items (reveal site sections) ---
-  const navItems = $('nav a, header a')
-    .map((_, el) => $(el).text().trim())
-    .get()
-    .filter(t => t.length > 1 && t.length < 40)
-    .slice(0, 12)
-
-  // --- Prices ---
   const priceRegex = /\$[\d,]+(?:\.\d{2})?/g
-  const bodyText = $('body').text()
-  const prices = [...new Set(bodyText.match(priceRegex) || [])].slice(0, 8)
+  const prices = [...new Set(($('body').text().match(priceRegex) || []))]
 
+  const productNames = []
+  $('h1, h2, h3, .product-title, .product__title, [class*="product-name"], [class*="product__name"]').each((_, el) => {
+    const t = $(el).text().trim()
+    if (t.length > 2 && t.length < 80) productNames.push(t)
+  })
+
+  const testimonials = []
+  $('[class*="review"], [class*="testimonial"], [class*="quote"], blockquote').each((_, el) => {
+    const t = $(el).text().trim()
+    if (t.length > 20 && t.length < 400) testimonials.push(t)
+  })
+
+  return { h1s, h2s, h3s, paragraphs, images, colors: [...colorSet], prices, productNames, testimonials }
+}
+
+function unique(arr) {
+  return [...new Set(arr)]
+}
+
+function mergePageData(pages) {
+  const merged = {
+    h1s: [],
+    h2s: [],
+    h3s: [],
+    paragraphs: [],
+    images: [],
+    colors: [],
+    prices: [],
+    productNames: [],
+    testimonials: [],
+  }
+  for (const p of pages) {
+    merged.h1s.push(...p.h1s)
+    merged.h2s.push(...p.h2s)
+    merged.h3s.push(...p.h3s)
+    merged.paragraphs.push(...p.paragraphs)
+    merged.images.push(...p.images)
+    merged.colors.push(...p.colors)
+    merged.prices.push(...p.prices)
+    merged.productNames.push(...p.productNames)
+    merged.testimonials.push(...p.testimonials)
+  }
   return {
-    url: normalizedUrl,
-    meta: { title, metaDesc, ogTitle, ogDesc, ogImage, twitterImage },
-    headings: { h1s, h2s, h3s },
-    paragraphs,
-    images: images.slice(0, 30),
-    colors,
-    ctas,
-    navItems,
-    prices,
+    h1s: unique(merged.h1s).slice(0, 8),
+    h2s: unique(merged.h2s).slice(0, 12),
+    h3s: unique(merged.h3s).slice(0, 12),
+    paragraphs: unique(merged.paragraphs).slice(0, 20),
+    images: merged.images.slice(0, 40),
+    colors: unique(merged.colors).filter(c => c.length === 4 || c.length === 7).slice(0, 20),
+    prices: unique(merged.prices).slice(0, 10),
+    productNames: unique(merged.productNames).slice(0, 8),
+    testimonials: unique(merged.testimonials).slice(0, 5),
   }
 }
 
-/**
- * Takes raw scraped data and asks Claude to interpret it into
- * a structured brand profile ready for email generation.
- */
+export async function scrapeWebsite(url) {
+  const baseUrl = url.startsWith('http') ? url : `https://${url}`
+  const origin = new URL(baseUrl).origin
+
+  const pagePaths = ['', '/about', '/products', '/collections', '/collections/all']
+  const pageUrls = pagePaths.map(p => origin + p)
+
+  const htmlResults = await Promise.allSettled(pageUrls.map(u => fetchPage(u)))
+
+  const parsedPages = []
+  for (let i = 0; i < htmlResults.length; i++) {
+    if (htmlResults[i].status === 'fulfilled' && htmlResults[i].value) {
+      parsedPages.push(parsePage(htmlResults[i].value, pageUrls[i]))
+    }
+  }
+
+  if (parsedPages.length === 0) throw new Error('Could not fetch any pages from this website')
+
+  const homepageHtml = htmlResults[0].status === 'fulfilled' ? htmlResults[0].value : null
+  let meta = { title: '', metaDesc: '', ogTitle: '', ogDesc: '', ogImage: '', twitterImage: '' }
+  let ctas = []
+  let navItems = []
+
+  if (homepageHtml) {
+    const $ = cheerio.load(homepageHtml)
+    meta = {
+      title: $('title').first().text().trim() || '',
+      metaDesc: $('meta[name="description"]').attr('content') || '',
+      ogTitle: $('meta[property="og:title"]').attr('content') || '',
+      ogDesc: $('meta[property="og:description"]').attr('content') || '',
+      ogImage: $('meta[property="og:image"]').attr('content') || '',
+      twitterImage: $('meta[name="twitter:image"]').attr('content') || '',
+    }
+    ctas = $('button, a.btn, a[class*="button"], a[class*="cta"]')
+      .map((_, el) => $(el).text().trim())
+      .get()
+      .filter(t => t.length > 1 && t.length < 50)
+      .slice(0, 10)
+    navItems = $('nav a, header a')
+      .map((_, el) => $(el).text().trim())
+      .get()
+      .filter(t => t.length > 1 && t.length < 40)
+      .slice(0, 12)
+  }
+
+  const merged = mergePageData(parsedPages)
+
+  return {
+    url: baseUrl,
+    pagesScraped: parsedPages.length,
+    meta,
+    headings: { h1s: merged.h1s, h2s: merged.h2s, h3s: merged.h3s },
+    paragraphs: merged.paragraphs,
+    images: merged.images,
+    colors: merged.colors,
+    ctas,
+    navItems,
+    prices: merged.prices,
+    productNames: merged.productNames,
+    testimonials: merged.testimonials,
+  }
+}
+
 export async function analyzeBrandWithAI(scrapedData, anthropic) {
   const prompt = `You are a brand strategist and email marketing expert. Analyze this website data and extract a structured brand profile.
 
-SCRAPED WEBSITE DATA:
+SCRAPED WEBSITE DATA (from ${scrapedData.pagesScraped} pages):
 URL: ${scrapedData.url}
 
 Meta:
@@ -131,40 +191,42 @@ Meta:
 - OG Title: ${scrapedData.meta.ogTitle}
 - OG Description: ${scrapedData.meta.ogDesc}
 
-Headings:
+Headings across all pages:
 H1s: ${JSON.stringify(scrapedData.headings.h1s)}
 H2s: ${JSON.stringify(scrapedData.headings.h2s)}
 H3s: ${JSON.stringify(scrapedData.headings.h3s)}
 
-Body paragraphs (first 15):
-${scrapedData.paragraphs.slice(0, 15).join('\n')}
+Body paragraphs:
+${scrapedData.paragraphs.slice(0, 20).join('\n')}
 
-Navigation items: ${JSON.stringify(scrapedData.navItems)}
-CTA buttons: ${JSON.stringify(scrapedData.ctas)}
+Navigation: ${JSON.stringify(scrapedData.navItems)}
+CTAs: ${JSON.stringify(scrapedData.ctas)}
 Prices found: ${JSON.stringify(scrapedData.prices)}
-Colors found in CSS: ${JSON.stringify(scrapedData.colors.slice(0, 10))}
+Colors found: ${JSON.stringify(scrapedData.colors.slice(0, 10))}
+Product names found: ${JSON.stringify(scrapedData.productNames)}
+Customer testimonials found: ${JSON.stringify(scrapedData.testimonials)}
+Image alt texts: ${JSON.stringify(scrapedData.images.slice(0, 15).map(i => i.alt).filter(Boolean))}
 
-Image alt texts: ${JSON.stringify(scrapedData.images.slice(0, 10).map(i => i.alt).filter(Boolean))}
-
-Based on all this, return a JSON object with this exact structure:
+Return a JSON object with this exact structure:
 {
-  "brandName": "string — the actual brand/business name",
-  "tagline": "string — their main tagline or value proposition",
-  "niche": "string — specific industry (e.g. 'Premium skincare', 'Gaming platform', 'Men's grooming')",
-  "productType": "string — what they primarily sell",
-  "targetAudience": "string — who they sell to, with demographics if clear",
-  "brandTone": "string — one of: Luxury & refined | Bold & direct | Warm & friendly | Playful & fun | Scientific & trusted | Minimalist",
-  "brandVoice": "string — 1-2 sentences describing how they communicate",
-  "keySellingPoints": ["array of 3-5 main USPs extracted from the content"],
-  "primaryColor": "string — most likely primary brand hex color (pick from colors found or infer from brand feel)",
-  "accentColor": "string — secondary/accent hex color",
-  "backgroundColor": "string — background hex color (likely #ffffff or light neutral)",
-  "avgOrderValue": "string — estimated price point based on prices found (e.g. '$49', '$150+', 'unknown')",
+  "brandName": "string",
+  "tagline": "string",
+  "niche": "string",
+  "productType": "string",
+  "targetAudience": "string",
+  "brandTone": "Luxury & refined | Bold & direct | Warm & friendly | Playful & fun | Scientific & trusted | Minimalist",
+  "brandVoice": "string — 1-2 sentences",
+  "keySellingPoints": ["3-5 USPs"],
+  "primaryColor": "string hex",
+  "accentColor": "string hex",
+  "backgroundColor": "string hex",
+  "avgOrderValue": "string",
   "hasSubscription": boolean,
-  "productNames": ["array of up to 5 specific product names found"],
-  "testimonialHints": "string — any social proof signals found (reviews, ratings, customer count)",
-  "missionStatement": "string — their why/mission if detectable",
-  "confidence": "high | medium | low — how confident you are in this analysis"
+  "productNames": ["up to 5 specific product names"],
+  "testimonialHints": "string — best social proof signal found",
+  "bestTestimonialQuote": "string — exact quote if found, else empty string",
+  "missionStatement": "string",
+  "confidence": "high | medium | low"
 }
 
 Return ONLY the JSON object. No markdown, no explanation.`
