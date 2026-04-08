@@ -1,6 +1,7 @@
 /**
- * MailForge Email Generator v7
- * Added real testimonial quotes in section 5.
+ * MailForge Email Generator v8
+ * Welcome email: discount code in hero section, above CTA.
+ * Other email types: unchanged behavior.
  */
 export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages) {
 
@@ -18,10 +19,19 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   if (!productImageUrl && hasScrapedImages && productImages.length > 1) productImageUrl = productImages[1]?.src
 
   const fontPairing = getFontPairing(brandData.brandTone)
+  const isWelcome = emailType === 'Welcome email'
 
   const realQuote = brandData.bestTestimonialQuote && brandData.bestTestimonialQuote.length > 10
     ? `USE THIS REAL CUSTOMER QUOTE EXACTLY AS WRITTEN: "${brandData.bestTestimonialQuote}"`
-    : `Write a highly specific fictional quote about a real result the customer got from using ${brandData.productType}. Make it feel earned and specific, not generic. Example: not "Great product!" but "My chisels now hold an edge 3x longer — I sharpened them once last month and they're still razor sharp."`
+    : `Write a highly specific fictional quote about a real result the customer got from using ${brandData.productType}. Make it feel earned and specific, not generic.`
+
+  const welcomeDiscountInstructions = isWelcome && offer ? `
+CRITICAL FOR WELCOME EMAIL — The discount code must appear in the HERO SECTION (section 2), above the CTA button. Layout inside the hero text band:
+1. Small label: body font, 11px, letter-spacing:4px, uppercase, rgba(255,255,255,0.7) — e.g. "YOUR WELCOME GIFT"
+2. Discount code box: display:inline-block, background:rgba(255,255,255,0.15), border:2px dashed rgba(255,255,255,0.5), padding:14px 36px, display font, 32px, white, letter-spacing:8px, uppercase — showing the code: "${offer}"
+3. Savings line: body font, 13px, rgba(255,255,255,0.7), margin:8px 0 28px — e.g. "Apply at checkout to save"
+4. Then the CTA button below that
+Do NOT put another discount box in section 6 for welcome emails.` : ''
 
   const systemPrompt = `You are a senior email designer at a top agency. Output ONLY valid JSON. Never use markdown code blocks. Your response must start with { and end with }.`
 
@@ -69,6 +79,8 @@ Generate the complete HTML email. Follow these rules EXACTLY:
 
 5. The email wrapper table must be: <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center" style="margin:0 auto;max-width:600px;">
 
+${welcomeDiscountInstructions}
+
 Now write the complete email with these 7 sections:
 
 SECTION 1 - HEADER
@@ -86,7 +98,8 @@ Row 2: Text band below image
 <tr><td bgcolor="${brandData.primaryColor}" style="padding:48px 48px 56px;text-align:center;">` : `
 <tr><td bgcolor="${brandData.primaryColor}" style="padding:80px 48px;text-align:center;">`}
 Headline: display font, 54px, white, bold, line-height:1.1, margin:0 0 16px
-Subline: body font, 18px, rgba(255,255,255,0.85), margin:0 0 36px
+Subline: body font, 18px, rgba(255,255,255,0.85), margin:0 0 ${isWelcome && offer ? '28px' : '36px'}
+${isWelcome && offer ? `[INSERT DISCOUNT CODE BLOCK HERE as described above]` : ''}
 CTA button: bgcolor="${brandData.accentColor}", white text, padding:18px 52px, body font, 13px, bold, letter-spacing:3px, uppercase, border-radius:2px
 ${heroImageUrl ? '</td></tr>' : '</td></tr>'}
 
@@ -97,7 +110,7 @@ Label: body font, 11px, letter-spacing:4px, uppercase, color:${brandData.accentC
 H2: display font, 36px, #111111, bold, line-height:1.2, margin-bottom:28px
 3 paragraphs: body font, 16px, #555555, line-height:1.8
 Write REAL copy specific to ${brandData.brandName} and ${emailType}:
-- Welcome: brand origin story, founder vision, product promise
+- Welcome: brief brand intro, founder vision, what makes the product special. DO NOT mention the discount again here.
 - Abandoned cart: emotional connection to what they almost bought
 - Post-purchase: celebration, what to expect, community invitation
 - Flash sale: urgency, what they gain, why now
@@ -125,9 +138,9 @@ SECTION 6 - CTA BAND
 bgcolor="${brandData.accentColor}"
 padding:64px 48px, text-align:center
 H2: display font, 36px, white, line-height:1.2
-${offer ? `Discount box: white bg, display font, 28px, letter-spacing:6px, dark text, padding:16px 40px, inline-block` : ''}
+${offer && !isWelcome ? `Discount box: white bg, display font, 28px, letter-spacing:6px, dark text, padding:16px 40px, inline-block` : ''}
 CTA button: white bg, color:${brandData.primaryColor}, padding:18px 56px, body font, 13px, bold, letter-spacing:3px, uppercase, border-radius:2px
-Urgency line: body font, 13px, rgba(255,255,255,0.75)
+${isWelcome && offer ? `Urgency line below button: body font, 13px, rgba(255,255,255,0.85) — "Your code ${offer} expires in 48 hours"` : `Urgency line: body font, 13px, rgba(255,255,255,0.75)`}
 
 SECTION 7 - FOOTER
 bgcolor="#0a0a0a"
