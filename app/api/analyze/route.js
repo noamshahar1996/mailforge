@@ -25,19 +25,19 @@ export async function POST(request) {
       return NextResponse.json({ error: `Brand analysis failed: ${err.message}` }, { status: 500 })
     }
 
-    // Homepage hero: first image with no alt text (usually the hero banner)
+    // Homepage hero: first large image scraped, skip logos/icons only
     const homepageHero = scraped.images.find(img => {
       const src = img.src.toLowerCase()
+      if (src.includes('logo') || src.includes('icon') || src.includes('favicon') || src.includes('pixel')) return false
       if (!src.includes('.jpg') && !src.includes('.jpeg') && !src.includes('.png') && !src.includes('.webp')) return false
-      if (src.includes('logo') || src.includes('icon') || src.includes('favicon')) return false
       return true
     }) || null
 
-    // Product images: images with real alt text (product names)
+    // Product images: images with real product names as alt text
     const usableImages = scraped.images.filter(img => {
       const src = img.src.toLowerCase()
       if (!img.alt || img.alt.trim().length < 2) return false
-      if (src.includes('logo') || src.includes('icon') || src.includes('favicon') || src.includes('pixel') || src.includes('tracking')) return false
+      if (src.includes('logo') || src.includes('icon') || src.includes('favicon') || src.includes('pixel')) return false
       if (!src.includes('.jpg') && !src.includes('.jpeg') && !src.includes('.png') && !src.includes('.webp')) return false
       return true
     }).slice(0, 12)
