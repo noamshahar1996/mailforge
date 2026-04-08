@@ -6,17 +6,15 @@ export const maxDuration = 60
 
 export async function POST(request) {
   try {
-    const { brandData, emailType, offer, selectedImages } = await request.json()
+    const { brandData, emailType, offer, selectedImages, generatedImages } = await request.json()
 
     if (!brandData || !emailType) {
       return NextResponse.json({ error: 'brandData and emailType are required' }, { status: 400 })
     }
 
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const result = await generateEmail(brandData, emailType, offer, selectedImages, anthropic, generatedImages)
 
-    const result = await generateEmail(brandData, emailType, offer, selectedImages, anthropic)
-
-    // Extra safety: if html is empty or looks wrong, return error
     if (!result.html || result.html.length < 100) {
       return NextResponse.json({ error: 'Generated email was empty. Please try again.' }, { status: 500 })
     }
