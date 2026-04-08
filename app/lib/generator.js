@@ -1,13 +1,12 @@
 /**
- * MailForge Email Generator v5
- * Uses AI-generated images + Google Fonts for premium quality output.
+ * MailForge Email Generator v6
+ * Fixed full-width images, improved layout quality.
  */
 export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages) {
 
-  const hasScrapedImages = productImages && productImages.length > 0
   const hasGeneratedImages = generatedImages && generatedImages.length > 0
+  const hasScrapedImages = productImages && productImages.length > 0
 
-  // Prefer AI-generated images, fall back to scraped
   let heroImageUrl = null
   let productImageUrl = null
 
@@ -15,208 +14,133 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
     heroImageUrl = generatedImages.find(i => i.type === 'hero')?.url
     productImageUrl = generatedImages.find(i => i.type === 'product')?.url
   }
-
-  if (!heroImageUrl && hasScrapedImages) {
-    heroImageUrl = productImages[0]?.src
-  }
-  if (!productImageUrl && hasScrapedImages && productImages.length > 1) {
-    productImageUrl = productImages[1]?.src
-  }
+  if (!heroImageUrl && hasScrapedImages) heroImageUrl = productImages[0]?.src
+  if (!productImageUrl && hasScrapedImages && productImages.length > 1) productImageUrl = productImages[1]?.src
 
   const fontPairing = getFontPairing(brandData.brandTone)
 
-  const systemPrompt = `You are a senior email designer. Output ONLY valid JSON. Never use markdown. Start with { end with }.`
+  const systemPrompt = `You are a senior email designer at a top agency. Output ONLY valid JSON. Never use markdown code blocks. Your response must start with { and end with }.`
 
-  const userPrompt = `Design a stunning premium HTML email for ${brandData.brandName}.
+  const userPrompt = `Design a premium HTML email for ${brandData.brandName}.
 
 BRAND:
-Name: ${brandData.brandName}
-Tagline: ${brandData.tagline || ''}
-Niche: ${brandData.niche}
-Product: ${brandData.productType}
-Audience: ${brandData.targetAudience}
-Tone: ${brandData.brandTone}
-Voice: ${brandData.brandVoice || ''}
-USPs: ${(brandData.keySellingPoints || []).join(', ')}
-Primary color: ${brandData.primaryColor}
-Accent color: ${brandData.accentColor}
-Background: ${brandData.backgroundColor || '#ffffff'}
-Products: ${(brandData.productNames || []).join(', ')}
-Social proof: ${brandData.testimonialHints || ''}
-Mission: ${brandData.missionStatement || ''}
+- Name: ${brandData.brandName}
+- Tagline: ${brandData.tagline || ''}
+- Niche: ${brandData.niche}
+- Product: ${brandData.productType}
+- Audience: ${brandData.targetAudience}
+- Tone: ${brandData.brandTone}
+- Voice: ${brandData.brandVoice || ''}
+- USPs: ${(brandData.keySellingPoints || []).join(', ')}
+- Primary color: ${brandData.primaryColor}
+- Accent color: ${brandData.accentColor}
+- Background: ${brandData.backgroundColor || '#ffffff'}
+- Products: ${(brandData.productNames || []).join(', ')}
+- Social proof: ${brandData.testimonialHints || ''}
+- Mission: ${brandData.missionStatement || ''}
 
 EMAIL TYPE: ${emailType}
 OFFER: ${offer || 'none'}
 
-IMAGES TO USE:
-Hero image URL: ${heroImageUrl || 'NONE — use bold colored section'}
-Product image URL: ${productImageUrl || 'NONE — use styled placeholder'}
+HERO IMAGE URL: ${heroImageUrl || 'NONE'}
+PRODUCT IMAGE URL: ${productImageUrl || 'NONE'}
 
 FONTS:
-Import: ${fontPairing.importUrl}
-Display (headlines): ${fontPairing.display}
-Body (text): ${fontPairing.body}
+@import url('${fontPairing.importUrl}');
+Display font: ${fontPairing.display}
+Body font: ${fontPairing.body}
 
-BUILD THIS EXACT HTML EMAIL STRUCTURE:
+Generate the complete HTML email. Follow these rules EXACTLY:
 
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${brandData.brandName}</title>
-<style>@import url('${fontPairing.importUrl}');</style>
-</head>
-<body style="margin:0;padding:20px 0;background:#e8e8e8;">
-<table width="600" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;background:#ffffff;font-family:Arial,sans-serif;">
+1. HERO IMAGE must be: <img src="${heroImageUrl || ''}" width="600" style="display:block;width:600px;max-width:100%;border:0;line-height:100%;outline:none;text-decoration:none;" alt="${brandData.brandName}">
+   - It must be the FIRST thing inside the <td> with NO padding around it
+   - The <td> must have style="padding:0;margin:0;line-height:0;font-size:0;"
 
-<!-- SECTION 1: HEADER -->
-<tr><td style="background:${brandData.primaryColor};padding:28px 40px;text-align:center;">
-<p style="margin:0;font-family:'${fontPairing.display}',Georgia,serif;font-size:18px;letter-spacing:6px;color:#ffffff;text-transform:uppercase;">${brandData.brandName}</p>
-</td></tr>
+2. PRODUCT IMAGE must be: <img src="${productImageUrl || ''}" width="480" style="display:block;margin:0 auto;max-width:100%;border:0;" alt="Product">
 
-<!-- SECTION 2: HERO -->
+3. ALL section backgrounds must use bgcolor attribute on <td>, not CSS background
+
+4. Font stacks: use font-family:'${fontPairing.display}',Georgia,'Times New Roman',serif for headlines
+   and font-family:'${fontPairing.body}',Arial,Helvetica,sans-serif for body text
+
+5. The email wrapper table must be: <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center" style="margin:0 auto;max-width:600px;">
+
+Now write the complete email with these 7 sections:
+
+SECTION 1 - HEADER
+bgcolor="${brandData.primaryColor}"
+Brand name: 20px, letter-spacing:6px, uppercase, white, centered, padding:24px 40px
+Font: display font
+
+SECTION 2 - HERO
 ${heroImageUrl ? `
-<tr><td style="padding:0;line-height:0;">
-<img src="${heroImageUrl}" width="600" alt="${brandData.brandName}" style="display:block;width:100%;border:none;">
+Row 1: Full-width hero image (NO padding, no margin)
+<tr><td style="padding:0;margin:0;line-height:0;font-size:0;" bgcolor="${brandData.primaryColor}">
+<img src="${heroImageUrl}" width="600" style="display:block;width:600px;max-width:100%;border:0;" alt="${brandData.brandName}">
 </td></tr>
-<tr><td style="background:${brandData.primaryColor};padding:52px 48px;text-align:center;">
-` : `
-<tr><td style="background:${brandData.primaryColor};padding:80px 48px;text-align:center;">
-`}
-<h1 style="margin:0 0 16px 0;font-family:'${fontPairing.display}',Georgia,serif;font-size:52px;line-height:1.1;color:#ffffff;font-weight:700;">
-[WRITE POWERFUL HEADLINE FOR ${emailType} — SPECIFIC TO ${brandData.brandName}]
-</h1>
-<p style="margin:0 0 36px 0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:18px;line-height:1.5;color:rgba(255,255,255,0.85);">
-[WRITE COMPELLING SUBHEADLINE]
-</p>
-<a href="#" style="background:${brandData.accentColor};color:#ffffff;padding:18px 52px;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;text-decoration:none;display:inline-block;border-radius:2px;">
-[SPECIFIC CTA FOR EMAIL TYPE]
-</a>
-</td></tr>
+Row 2: Text band below image
+<tr><td bgcolor="${brandData.primaryColor}" style="padding:48px 48px 56px;text-align:center;">` : `
+<tr><td bgcolor="${brandData.primaryColor}" style="padding:80px 48px;text-align:center;">`}
+Headline: display font, 54px, white, bold, line-height:1.1, margin:0 0 16px
+Subline: body font, 18px, rgba(255,255,255,0.85), margin:0 0 36px
+CTA button: bgcolor="${brandData.accentColor}", white text, padding:18px 52px, body font, 13px, bold, letter-spacing:3px, uppercase, border-radius:2px
+${heroImageUrl ? '</td></tr>' : '</td></tr>'}
 
-<!-- SECTION 3: STORY -->
-<tr><td style="background:#ffffff;padding:64px 56px;">
-<p style="margin:0 0 16px 0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${brandData.accentColor};">
-[SECTION LABEL e.g. "OUR STORY" or "WHY IT MATTERS"]
-</p>
-<h2 style="margin:0 0 28px 0;font-family:'${fontPairing.display}',Georgia,serif;font-size:36px;line-height:1.2;color:#111111;font-weight:700;">
-[SECTION HEADLINE — specific to ${emailType}]
-</h2>
-<p style="margin:0 0 18px 0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:16px;line-height:1.8;color:#555555;">
-[PARAGRAPH 1 — brand-specific copy for ${emailType}]
-</p>
-<p style="margin:0 0 18px 0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:16px;line-height:1.8;color:#555555;">
-[PARAGRAPH 2]
-</p>
-<p style="margin:0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:16px;line-height:1.8;color:#555555;">
-[PARAGRAPH 3]
-</p>
-</td></tr>
+SECTION 3 - STORY
+bgcolor="#ffffff"
+padding:64px 56px
+Label: body font, 11px, letter-spacing:4px, uppercase, color:${brandData.accentColor}, margin-bottom:16px
+H2: display font, 36px, #111111, bold, line-height:1.2, margin-bottom:28px
+3 paragraphs: body font, 16px, #555555, line-height:1.8
+Write REAL copy specific to ${brandData.brandName} and ${emailType}:
+- Welcome: brand origin story, founder vision, product promise
+- Abandoned cart: emotional connection to what they almost bought
+- Post-purchase: celebration, what to expect, community invitation
+- Flash sale: urgency, what they gain, why now
+- Win-back: honest reconnection, what changed, compelling reason to return
+- Product launch: vision, innovation, why this changes everything
 
-<!-- SECTION 4: PRODUCT -->
-<tr><td style="background:${brandData.backgroundColor || '#f5f5f5'};padding:56px 40px;text-align:center;">
-<p style="margin:0 0 12px 0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${brandData.accentColor};">
-[PRODUCT SECTION LABEL]
-</p>
-<h2 style="margin:0 0 40px 0;font-family:'${fontPairing.display}',Georgia,serif;font-size:32px;color:#111111;font-weight:700;">
-[PRODUCT SECTION HEADLINE]
-</h2>
-${productImageUrl ? `
-<img src="${productImageUrl}" width="480" alt="Product" style="display:block;margin:0 auto 32px;border:none;max-width:100%;">
-` : `
-<table width="100%" cellpadding="0" cellspacing="0" border="0">
-<tr>
-<td width="33%" style="padding:0 12px;text-align:center;vertical-align:top;">
-<div style="width:64px;height:64px;border-radius:50%;background:${brandData.accentColor};margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
-<p style="margin:0;font-family:'${fontPairing.display}',Georgia,serif;font-size:28px;color:#ffffff;font-weight:700;">1</p>
-</div>
-<p style="margin:0 0 8px 0;font-family:'${fontPairing.display}',Georgia,serif;font-size:16px;color:#111;font-weight:700;">[FEATURE 1]</p>
-<p style="margin:0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:13px;color:#777;line-height:1.6;">[DESCRIPTION]</p>
-</td>
-<td width="33%" style="padding:0 12px;text-align:center;vertical-align:top;">
-<div style="width:64px;height:64px;border-radius:50%;background:${brandData.accentColor};margin:0 auto 16px;">
-<p style="margin:0;padding-top:14px;font-family:'${fontPairing.display}',Georgia,serif;font-size:28px;color:#ffffff;font-weight:700;">2</p>
-</div>
-<p style="margin:0 0 8px 0;font-family:'${fontPairing.display}',Georgia,serif;font-size:16px;color:#111;font-weight:700;">[FEATURE 2]</p>
-<p style="margin:0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:13px;color:#777;line-height:1.6;">[DESCRIPTION]</p>
-</td>
-<td width="33%" style="padding:0 12px;text-align:center;vertical-align:top;">
-<div style="width:64px;height:64px;border-radius:50%;background:${brandData.accentColor};margin:0 auto 16px;">
-<p style="margin:0;padding-top:14px;font-family:'${fontPairing.display}',Georgia,serif;font-size:28px;color:#ffffff;font-weight:700;">3</p>
-</div>
-<p style="margin:0 0 8px 0;font-family:'${fontPairing.display}',Georgia,serif;font-size:16px;color:#111;font-weight:700;">[FEATURE 3]</p>
-<p style="margin:0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:13px;color:#777;line-height:1.6;">[DESCRIPTION]</p>
-</td>
-</tr>
-</table>
-`}
-</td></tr>
+SECTION 4 - PRODUCT
+bgcolor="${brandData.backgroundColor || '#f5f5f5'}"
+padding:56px 40px, text-align:center
+Label: same style as section 3
+H2: display font, 30px, #111111
+${productImageUrl ? `Product image: <img src="${productImageUrl}" width="480" style="display:block;margin:0 auto 32px;max-width:100%;border:0;">` : `3 feature boxes in a row with numbered circles in ${brandData.accentColor}`}
 
-<!-- SECTION 5: SOCIAL PROOF -->
-<tr><td style="background:#111111;padding:64px 56px;text-align:center;">
-<p style="margin:0 0 8px 0;font-family:'${fontPairing.display}',Georgia,serif;font-size:80px;color:${brandData.accentColor};line-height:0.7;">&ldquo;</p>
-<p style="margin:24px 0 28px 0;font-family:'${fontPairing.display}',Georgia,serif;font-size:26px;font-style:italic;color:#ffffff;line-height:1.5;">
-[SPECIFIC CUSTOMER QUOTE about the result they got from ${brandData.productType}]
-</p>
-<p style="margin:0 0 16px 0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:12px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.5);">
-[CUSTOMER NAME] &nbsp;·&nbsp; [CITY, STATE]
-</p>
-<p style="margin:0 0 12px 0;font-size:22px;color:${brandData.accentColor};">★★★★★</p>
-<p style="margin:0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.4);">
-[RATING e.g. "Rated 4.9/5 from 2,400+ verified customers"]
-</p>
-</td></tr>
+SECTION 5 - SOCIAL PROOF (DARK)
+bgcolor="#111111"
+padding:64px 56px, text-align:center
+Opening quote mark: display font, 72px, ${brandData.accentColor}, line-height:0.6
+Quote: display font, 26px, italic, white, line-height:1.5 — make it SPECIFIC to the product result
+Attribution: body font, 12px, letter-spacing:3px, uppercase, rgba(255,255,255,0.5)
+Stars: ★★★★★ in ${brandData.accentColor}, 22px
+Rating summary line: body font, 13px, rgba(255,255,255,0.4)
 
-<!-- SECTION 6: CTA -->
-<tr><td style="background:${brandData.accentColor};padding:64px 48px;text-align:center;">
-<h2 style="margin:0 0 ${offer ? '28px' : '36px'} 0;font-family:'${fontPairing.display}',Georgia,serif;font-size:36px;color:#ffffff;font-weight:700;line-height:1.2;">
-[CTA SECTION HEADLINE for ${emailType}]
-</h2>
-${offer ? `
-<div style="display:inline-block;background:#ffffff;padding:16px 40px;margin:0 0 32px 0;">
-<p style="margin:0;font-family:'${fontPairing.display}',Georgia,serif;font-size:26px;letter-spacing:6px;color:#111111;font-weight:700;">${offer}</p>
-</div>
-<br>
-` : ''}
-<a href="#" style="background:#ffffff;color:${brandData.primaryColor};padding:18px 56px;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;text-decoration:none;display:inline-block;border-radius:2px;">
-[FINAL CTA BUTTON TEXT]
-</a>
-<p style="margin:20px 0 0 0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.75);">
-[URGENCY OR TRUST LINE e.g. "Free shipping · 30-day returns · 4.9★ rated"]
-</p>
-</td></tr>
+SECTION 6 - CTA BAND
+bgcolor="${brandData.accentColor}"
+padding:64px 48px, text-align:center
+H2: display font, 36px, white, line-height:1.2
+${offer ? `Discount box: white bg, display font, 28px, letter-spacing:6px, dark text, padding:16px 40px, inline-block` : ''}
+CTA button: white bg, color:${brandData.primaryColor}, padding:18px 56px, body font, 13px, bold, letter-spacing:3px, uppercase, border-radius:2px
+Urgency line: body font, 13px, rgba(255,255,255,0.75)
 
-<!-- SECTION 7: FOOTER -->
-<tr><td style="background:#0a0a0a;padding:48px 40px;text-align:center;">
-<p style="margin:0 0 8px 0;font-family:'${fontPairing.display}',Georgia,serif;font-size:20px;letter-spacing:5px;color:#ffffff;text-transform:uppercase;">${brandData.brandName}</p>
-<p style="margin:0 0 28px 0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:13px;color:rgba(255,255,255,0.4);">${brandData.tagline || ''}</p>
-<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:0 0 28px 0;">
-<p style="margin:0 0 20px 0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);">
-<a href="#" style="color:rgba(255,255,255,0.4);text-decoration:none;">Instagram</a> &nbsp;·&nbsp;
-<a href="#" style="color:rgba(255,255,255,0.4);text-decoration:none;">Facebook</a> &nbsp;·&nbsp;
-<a href="#" style="color:rgba(255,255,255,0.4);text-decoration:none;">TikTok</a>
-</p>
-<p style="margin:0;font-family:'${fontPairing.body}',Arial,sans-serif;font-size:11px;color:rgba(255,255,255,0.25);">
-You're receiving this because you signed up at ${brandData.brandName}.
-<a href="#" style="color:rgba(255,255,255,0.25);text-decoration:underline;">Unsubscribe</a>
-</p>
-</td></tr>
+SECTION 7 - FOOTER
+bgcolor="#0a0a0a"
+padding:48px 40px, text-align:center
+Brand name: display font, 20px, white, letter-spacing:5px, uppercase
+Tagline: body font, 13px, rgba(255,255,255,0.4)
+HR: border-top:1px solid rgba(255,255,255,0.1)
+Social links: Instagram · Facebook · TikTok in rgba(255,255,255,0.4)
+Unsubscribe: 11px, rgba(255,255,255,0.25)
 
-</table>
-</body>
-</html>
+WRAP EVERYTHING in:
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>@import url('${fontPairing.importUrl}');</style></head><body style="margin:0;padding:20px 0;background:#e8e8e8;">
+[email table]
+</body></html>
 
-IMPORTANT INSTRUCTIONS:
-1. Replace ALL [BRACKET PLACEHOLDERS] with real, specific, brand-appropriate content
-2. Headlines must be LARGE and DRAMATIC — not generic
-3. Copy must sound like it was written by someone who deeply knows ${brandData.brandName}
-4. The quote in section 5 must be specific to the product benefit
-5. Keep ALL inline styles exactly as written
-6. Do NOT add or remove any sections
-7. Return ONLY JSON — no markdown
+CRITICAL: Replace ALL placeholder text with real brand-specific content. No generic copy.
 
-{"subject_line": "compelling subject for ${emailType}", "preview_text": "preview text", "html": "COMPLETE_HTML_HERE"}`
+Return JSON: {"subject_line":"...","preview_text":"...","html":"..."}`
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
