@@ -27,7 +27,7 @@ export async function POST(request) {
       return NextResponse.json({ error: `Brand analysis failed: ${err.message}` }, { status: 500 })
     }
 
-    // Return both brand profile AND usable images
+    // Filter usable images
     const usableImages = scraped.images.filter(img => {
       const src = img.src.toLowerCase()
       return (
@@ -44,7 +44,10 @@ export async function POST(request) {
       brandData,
       images: usableImages,
       rawMeta: scraped.meta,
+      pagesScraped: scraped.pagesScraped,
+      testimonials: scraped.testimonials,
     })
+
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
