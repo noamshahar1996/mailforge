@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fal } from '@fal-ai/client'
 
 export const maxDuration = 60
 
@@ -6,6 +7,9 @@ export async function POST(request) {
   try {
     const { brandData, emailType, productImages } = await request.json()
     if (!brandData) return NextResponse.json({ error: 'brandData required' }, { status: 400 })
+
+    fal.config({ credentials: process.env.FAL_KEY })
+
     const images = await generateBrandImages(brandData, emailType, productImages || [])
     return NextResponse.json({ images })
   } catch (err) {
@@ -15,57 +19,31 @@ export async function POST(request) {
 }
 
 async function generateBrandImages(brandData, emailType, productImages) {
-  const apiKey = process.env.IDEOGRAM_API_KEY
-  if (!apiKey) throw new Error('IDEOGRAM_API_KEY not configured')
-
-  // Find best product image to remix — prefer ones with real product names
   const referenceImage = productImages.find(img => img.alt && img.alt.trim().length > 2)
     || productImages[0]
 
-  if (!referenceImage) {
-    console.log('No reference image found, skipping generation')
-    return []
-  }
+  if (!referenceImage) return []
+
+  const prompt = buildRemixPrompt(brandData, emailType)
 
   try {
-    // Fetch the product image as binary
-    const imageRes = await fetch(referenceImage.src, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MailForgeBot/1.0)' }
-    })
-    if (!imageRes.ok) throw new Error(`Could not fetch image: ${imageRes.status}`)
-    
-    const imageBuffer = await imageRes.arrayBuffer()
-    const imageBlob = new Blob([imageBuffer], { type: 'image/jpeg' })
-    const prompt = buildRemixPrompt(brandData, emailType)
-
-    // Build multipart form for Ideogram remix
-    const formData = new FormData()
-    formData.append('image_file', imageBlob, 'product.jpg')
-    formData.append('prompt', prompt)
-    formData.append('aspect_ratio', 'ASPECT_16_9')
-    formData.append('model', 'V_2')
-    formData.append('magic_prompt_option', 'OFF')
-    formData.append('style_type', 'REALISTIC')
-    formData.append('image_weight', '50')
-
-    const res = await fetch('https://api.ideogram.ai/remix', {
-      method: 'POST',
-      headers: { 'Api-Key': apiKey },
-      body: formData,
+    const result = await fal.subscribe('fal-ai/ideogram/v2/remix', {
+      input: {
+        prompt,
+        image_url: referenceImage.src,
+        image_size: 'landscape_16_9',
+        image_weight: 50,
+        style_type: 'REALISTIC',
+        magic_prompt_option: 'OFF',
+        negative_prompt: 'text, words, letters, watermark, logo, blurry, low quality, people, faces',
+      },
     })
 
-    if (!res.ok) {
-      const err = await res.text()
-      console.error('Ideogram remix error:', err)
-      return []
-    }
-
-    const data = await res.json()
-    const imageUrl = data?.data?.[0]?.url
+    const imageUrl = result?.data?.images?.[0]?.url
     if (imageUrl) return [{ url: imageUrl, type: 'hero' }]
     return []
   } catch (err) {
-    console.error('Image generation failed:', err)
+    console.error('fal remix failed:', err)
     return []
   }
 }
@@ -86,8 +64,8 @@ function buildRemixPrompt(brand, emailType) {
   return [
     `Transform this product into a premium lifestyle hero image for a ${niche} brand.`,
     `${mood}.`,
-    `Show the product clearly as the hero of the scene.`,
+    `Show the product clearly as the hero of the scene on a wooden workbench.`,
     `Wide 16:9 format. No text, no people, no faces, no logos, no watermarks.`,
-    `Professional commercial photography quality. Clean and immersive.`,
+    `Professional commercial photography quality.`,
   ].join(' ')
 }
