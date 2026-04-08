@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { fal } from '@fal-ai/client'
 
 export const maxDuration = 60
 
@@ -7,9 +6,6 @@ export async function POST(request) {
   try {
     const { brandData, emailType, productImages } = await request.json()
     if (!brandData) return NextResponse.json({ error: 'brandData required' }, { status: 400 })
-
-    fal.config({ credentials: process.env.FAL_KEY })
-
     const images = await generateBrandImages(brandData, emailType, productImages || [])
     return NextResponse.json({ images })
   } catch (err) {
@@ -19,6 +15,12 @@ export async function POST(request) {
 }
 
 async function generateBrandImages(brandData, emailType, productImages) {
+  const falKey = process.env.FAL_KEY
+  if (!falKey) {
+    console.error('FAL_KEY not configured')
+    return []
+  }
+
   const referenceImage = productImages.find(img => img.alt && img.alt.trim().length > 2)
     || productImages[0]
 
@@ -27,8 +29,13 @@ async function generateBrandImages(brandData, emailType, productImages) {
   const prompt = buildRemixPrompt(brandData, emailType)
 
   try {
-    const result = await fal.subscribe('fal-ai/ideogram/v2/remix', {
-      input: {
+    const res = await fetch('https://fal.run/fal-ai/ideogram/v2/remix', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
         prompt,
         image_url: referenceImage.src,
         image_size: 'landscape_16_9',
@@ -36,10 +43,17 @@ async function generateBrandImages(brandData, emailType, productImages) {
         style_type: 'REALISTIC',
         magic_prompt_option: 'OFF',
         negative_prompt: 'text, words, letters, watermark, logo, blurry, low quality, people, faces',
-      },
+      }),
     })
 
-    const imageUrl = result?.data?.images?.[0]?.url
+    if (!res.ok) {
+      const err = await res.text()
+      console.error('fal API error:', res.status, err)
+      return []
+    }
+
+    const data = await res.json()
+    const imageUrl = data?.images?.[0]?.url
     if (imageUrl) return [{ url: imageUrl, type: 'hero' }]
     return []
   } catch (err) {
