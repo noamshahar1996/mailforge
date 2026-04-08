@@ -16,8 +16,14 @@ export async function POST(request) {
 
     const result = await generateEmail(brandData, emailType, offer, selectedImages, anthropic)
 
+    // Extra safety: if html is empty or looks wrong, return error
+    if (!result.html || result.html.length < 100) {
+      return NextResponse.json({ error: 'Generated email was empty. Please try again.' }, { status: 500 })
+    }
+
     return NextResponse.json(result)
   } catch (err) {
+    console.error('Generate error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
