@@ -1,16 +1,60 @@
 /**
  * MailForge Email Generator v15
- * Text-first layout for all email types — no hero images.
- * Clean, focused, consistent across all 6 types.
+ * Supports both single emails and full flow sequences.
+ * Includes plain-text founder email template.
  */
 
-export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages) {
+// ─── FLOW GENERATOR ──────────────────────────────────────────────────────────
 
-  const isWelcome = emailType === 'Welcome email'
-  const isAbandoned = emailType === 'Abandoned cart'
-  const isPostPurchase = emailType === 'Post-purchase'
+export async function generateFlow(brandData, flowType, offer, productImages, anthropic, generatedImages) {
+  const flowConfigs = {
+    'welcome': [
+      { role: 'discount_delivery', label: 'Email 1 — Deliver the Code', sendTime: 'Send immediately', isPlainText: false },
+      { role: 'education', label: 'Email 2 — Educate', sendTime: 'Send 1 day later', isPlainText: false },
+      { role: 'founder', label: 'Email 3 — Founder Story', sendTime: 'Send 2 days later', isPlainText: true },
+      { role: 'urgency', label: 'Email 4 — Last Chance', sendTime: 'Send 3 days later', isPlainText: false },
+    ],
+    'post-purchase': [
+      { role: 'thank_you', label: 'Email 1 — Thank You', sendTime: 'Send right after purchase', isPlainText: false },
+      { role: 'how_to_use', label: 'Email 2 — How To Use It', sendTime: 'Send 1–2 days later', isPlainText: false },
+      { role: 'social_proof', label: 'Email 3 — Social Proof', sendTime: 'Send 3–5 days later', isPlainText: false },
+      { role: 'come_back', label: 'Email 4 — Come Back', sendTime: 'Send 7–14 days later', isPlainText: true },
+    ],
+    'abandoned-cart': [
+      { role: 'remind', label: 'Email 1 — Remind', sendTime: 'Send 1 hour after abandonment', isPlainText: false },
+      { role: 'build_trust', label: 'Email 2 — Build Trust', sendTime: 'Send 24 hours later', isPlainText: false },
+      { role: 'push', label: 'Email 3 — Push', sendTime: 'Send 48–72 hours later', isPlainText: false },
+    ],
+  }
 
-  // No hero images — use clean product image only for product section
+  const config = flowConfigs[flowType]
+  if (!config) throw new Error(`Unknown flow type: ${flowType}`)
+
+  const emails = []
+  for (const step of config) {
+    const email = step.isPlainText
+      ? await generatePlainTextEmail(brandData, flowType, step.role, offer, anthropic)
+      : await generateEmail(brandData, step.role, offer, productImages, anthropic, generatedImages, flowType)
+
+    emails.push({
+      label: step.label,
+      sendTime: step.sendTime,
+      isPlainText: step.isPlainText,
+      ...email,
+    })
+  }
+
+  return emails
+}
+
+// ─── SINGLE EMAIL GENERATOR ───────────────────────────────────────────────────
+
+export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages, flowType = null) {
+
+  const isWelcome = emailType === 'Welcome email' || emailType === 'discount_delivery'
+  const isAbandoned = emailType === 'Abandoned cart' || emailType === 'remind' || emailType === 'build_trust' || emailType === 'push'
+  const isPostPurchase = emailType === 'Post-purchase' || emailType === 'thank_you' || emailType === 'how_to_use' || emailType === 'social_proof' || emailType === 'come_back'
+
   let productImageUrl = null
   const cleanProductImage = productImages?.find(img => img.alt && img.alt.trim().length > 2)
   if (cleanProductImage) productImageUrl = cleanProductImage.src
@@ -57,7 +101,7 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   const topProducts = realProducts.slice(0, 3)
 
   const copy = await generateCopyWithClaude({
-    brandData, emailType, offer, topProducts, isWelcome, anthropic
+    brandData, emailType, offer, topProducts, isWelcome, flowType, anthropic
   })
 
   const html = assembleEmail({
@@ -76,80 +120,223 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   }
 }
 
-async function generateCopyWithClaude({ brandData, emailType, offer, topProducts, isWelcome, anthropic }) {
+// ─── PLAIN TEXT EMAIL GENERATOR ───────────────────────────────────────────────
+
+async function generatePlainTextEmail(brandData, flowType, role, offer, anthropic) {
+  const roleInstructions = {
+    'founder': `This is a plain-text founder email in the welcome flow. It looks like a personal Gmail from the founder.
+- No design, no images, no buttons
+- Write in first person from the founder
+- Short, personal, authentic — max 150 words
+- Tell a brief personal story about why they started the brand
+- Reference the welcome offer naturally if it exists
+- End with a personal sign-off: the founder's first name`,
+
+    'come_back': `This is a plain-text check-in email sent 7–14 days after purchase.
+- No design, no images, no buttons
+- Write in first person from the founder or customer success
+- Short, caring, not salesy — max 120 words
+- Ask how they're enjoying the product
+- Offer to help if they have any questions
+- Subtly remind them of complementary products: ${(brandData.productNames || []).join(', ')}
+- End with a personal sign-off`,
+  }
+
+  const instructions = roleInstructions[role] || ''
+
+  const prompt = `Write a plain-text email for ${brandData.brandName}.
+
+BRAND:
+- Name: ${brandData.brandName}
+- Niche: ${brandData.niche}
+- Product: ${brandData.productType}
+- Audience: ${brandData.targetAudience}
+- Tone: ${brandData.brandTone}
+- Voice: ${brandData.brandVoice || ''}
+- Mission: ${brandData.missionStatement || ''}
+- Offer: ${offer || 'none'}
+
+INSTRUCTIONS:
+${instructions}
+
+Return this exact JSON:
+{
+  "subject_line": "...",
+  "preview_text": "...",
+  "body": "..."
+}`
+
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 800,
+    system: `You are an expert email copywriter. Output ONLY valid JSON. No markdown. Start with { and end with }.`,
+    messages: [{ role: 'user', content: prompt }],
+  })
+
+  const raw = response.content[0].text.trim()
+  let copy
+  try { copy = JSON.parse(raw) } catch {
+    try {
+      const start = raw.indexOf('{')
+      const end = raw.lastIndexOf('}')
+      copy = JSON.parse(raw.substring(start, end + 1))
+    } catch {
+      throw new Error('Could not parse plain text email output')
+    }
+  }
+
+  const html = assemblePlainTextEmail({ brandData, copy, offer })
+  return { subject_line: copy.subject_line, preview_text: copy.preview_text, html }
+}
+
+function assemblePlainTextEmail({ brandData, copy, offer }) {
+  const body = (copy.body || '').replace(/\n/g, '<br>')
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:20px 0;background:#f5f5f5;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center" style="margin:0 auto;max-width:600px;background:#ffffff;padding:40px 48px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.8;color:#333333;">
+<tr><td>
+${body}
+<br><br>
+<p style="margin:24px 0 0;font-size:12px;color:#aaaaaa;border-top:1px solid #eeeeee;padding-top:16px;">
+<a href="#" style="color:#aaaaaa;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#aaaaaa;text-decoration:underline;">Manage preferences</a>
+</p>
+</td></tr>
+</table></body></html>`
+}
+
+// ─── COPY GENERATION ─────────────────────────────────────────────────────────
+
+async function generateCopyWithClaude({ brandData, emailType, offer, topProducts, isWelcome, flowType, anthropic }) {
 
   const systemPrompt = `You are an expert email copywriter for ecommerce brands. Output ONLY valid JSON. No markdown. Start with { and end with }.`
 
-  const emailTypeInstructions = {
-    'Welcome email': `
-This is email #1 in the welcome flow. Subscriber just signed up — they are warm and ready to buy.
-- Primary goal: deliver the discount code and make it easy to shop
+  const roleInstructions = {
+    // Welcome flow
+    'discount_delivery': `
+Email 1 of the welcome flow. Send immediately after signup.
+- Deliver the discount code prominently
 - Hero headline: warm welcome, max 6 words
-- Hero subline: one sentence about what the brand does
-- Story: brief brand intro using only real USPs, max 2 paragraphs
-- CTA button: "SHOP NOW & SAVE" if offer exists, else "SHOP NOW"
-- Do NOT mention the discount in the story section`,
+- Hero subline: one sentence about the brand
+- Story: brief brand intro, max 2 paragraphs, only real USPs
+- CTA button: "SHOP NOW & SAVE" if offer exists, else "SHOP NOW"`,
+
+    'education': `
+Email 2 of the welcome flow. Send 1 day later.
+- Goal: build trust and educate about the product
+- No discount mention — they already have the code
+- Hero headline: product benefit or education hook, max 6 words
+- Story: product education, how it works, why it's different
+- Use real product names: ${(brandData.productNames || []).join(', ')}
+- CTA button: "SHOP NOW"`,
+
+    'urgency': `
+Email 4 of the welcome flow. Last chance. Send 3 days later.
+- The discount is expiring — create urgency
+- Hero headline: urgency about the offer expiring, max 6 words
+- Hero subline: remind them what they'll lose
+- Story: last reminder of key benefits, why they should buy now
+- Offer expires: ${offer || 'welcome discount'}
+- CTA button: "CLAIM MY DISCOUNT"
+- Urgency line: "This offer expires today"`,
+
+    // Post-purchase flow
+    'thank_you': `
+Email 1 of the post-purchase flow. Send right after purchase.
+- Tone: celebratory, warm, reassuring
+- Hero headline: celebrate, max 6 words. Example: "Your order is confirmed!"
+- Story: welcome them, tell the brand story briefly, make them feel they made the right choice
+- CTA button: "TRACK MY ORDER"`,
+
+    'how_to_use': `
+Email 2 of the post-purchase flow. Send 1–2 days later.
+- Goal: teach them how to get the most out of the product
+- NO selling, NO product recommendations
+- Hero headline: about using the product, max 6 words
+- Story: 2-3 specific tips on how to use ${(brandData.productNames || [])[0] || brandData.productType}
+- CTA button: "VISIT OUR BLOG"`,
+
+    'social_proof': `
+Email 3 of the post-purchase flow. Send 3–5 days later.
+- Show real reviews and suggest complementary products
+- Hero headline: social proof focused, max 6 words
+- Story: reviews and community, then suggest complementary products
+- product_label: "YOU MIGHT ALSO LOVE"
+- product_headline: complementary products from: ${(brandData.productNames || []).join(', ')}
+- CTA button: "SHOP MORE"`,
+
+    // Abandoned cart flow
+    'remind': `
+Email 1 of the abandoned cart flow. Send 1 hour after abandonment.
+- Just remind them. No discount. One clear CTA.
+- Hero headline: cart is waiting, max 6 words. Example: "Your cart is ready"
+- Hero subline: name the specific products: ${topProducts.map(p => p.name).join(', ')}
+- Story: 1 short paragraph — emotional connection to the product
+- CTA button: "COMPLETE MY ORDER"
+- Urgency line: "Items in your cart may sell out"`,
+
+    'build_trust': `
+Email 2 of the abandoned cart flow. Send 24 hours later.
+- Remove doubt. Show reviews. Answer objections. NO discount.
+- Hero headline: trust-building, max 6 words
+- Story: address common objections, show social proof, answer why they should trust this brand
+- Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
+- CTA button: "COMPLETE MY ORDER"`,
+
+    'push': `
+Email 3 of the abandoned cart flow. Send 48–72 hours later.
+- Now push with urgency. Discount optional.
+- Hero headline: urgency, max 6 words
+- Hero subline: last chance to get the products
+- Story: final push — urgency, scarcity, or discount reveal
+- Offer: ${offer || 'none — use urgency/scarcity instead'}
+- CTA button: "COMPLETE MY ORDER"
+- Urgency line: "This is your last reminder"`,
+
+    // Single email types
+    'Welcome email': `
+Email #1 in the welcome flow.
+- Deliver the discount code prominently
+- Hero headline: warm welcome, max 6 words
+- Story: brief brand intro using only real USPs
+- CTA button: "SHOP NOW & SAVE" if offer exists, else "SHOP NOW"`,
 
     'Abandoned cart': `
-This is abandoned cart email #1, sent 30 minutes after abandonment.
-- Do NOT lead with a discount — create curiosity instead
-- Use mystery mechanic: hint that something special has been applied to their cart
-- Subject line should imply momentum, NOT guilt. Example: "Your order is almost ready"
-- Hero headline: short, direct, implies their cart is waiting. Max 6 words.
-- Hero subline: one sentence reminding them what they left behind using these product names: ${topProducts.map(p => p.name).join(', ')}
-- Story: 2 short paragraphs — emotional connection to the craft/product, then mystery offer hint
-- CTA button: "COMPLETE MY ORDER"
-- Urgency line: "Your cart expires soon — don't miss out"
-- Do NOT reveal any discount amount`,
+Abandoned cart email. Send 30 minutes after abandonment.
+- No discount — mystery mechanic only
+- Hero headline: cart is waiting, max 6 words
+- Hero subline: reference these products: ${topProducts.map(p => p.name).join(', ')}
+- Story: emotional connection + mystery offer hint
+- CTA button: "COMPLETE MY ORDER"`,
 
     'Post-purchase': `
-This is a post-purchase thank you email sent right after buying.
-- Tone: celebratory, warm, reassuring
-- Hero headline: celebrate their purchase, max 6 words. Example: "Your order is confirmed"
-- Hero subline: one sentence about what to expect next
-- Story section label: "WHAT'S NEXT"
-- Story headline: about what happens now — shipping, preparation
-- story_p1: what happens next with their order
-- story_p2: a tip about how to get the best from their new product
-- story_p3: invite them to the community or follow on social
-- product_label: "YOU MIGHT ALSO LOVE"
-- product_headline: suggest complementary products from: ${(brandData.productNames || []).join(', ')}
-- CTA button: "TRACK MY ORDER"
-- cta_headline: "Stay updated on your shipment"
-- Urgency line: a helpful care tip for their new product`,
+Post-purchase thank you email.
+- Tone: celebratory, warm
+- Hero headline: celebrate purchase, max 6 words
+- Story: what happens next, care tips, community invite
+- CTA button: "TRACK MY ORDER"`,
 
     'Flash sale': `
-This is a flash sale promotional email.
+Flash sale promotional email.
 - Tone: urgent, exciting
-- Hero headline: lead with the offer or urgency, max 6 words
-- Hero subline: what they save and why now
-- Story: why this sale, what products are included
+- Hero headline: offer or urgency, max 6 words
 - Offer: ${offer || 'limited time discount'}
 - CTA button: "SHOP THE SALE"
-- Urgency line: "Sale ends soon — don't miss out"`,
+- Urgency line: "Sale ends soon"`,
 
     'Win-back': `
-This is a win-back email for inactive subscribers.
-- Tone: honest, warm, not pushy
-- Hero headline: acknowledge the time away, max 6 words. Example: "We've missed you"
-- Hero subline: one sentence about what's new or what they're missing
-- Story: honest reconnection — what's changed, one compelling reason to return
-- Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
-- CTA button: "COME BACK & SAVE" if offer exists, else "SEE WHAT'S NEW"
-- Urgency line: make it feel like a limited opportunity`,
+Win-back email for inactive subscribers.
+- Tone: honest, warm
+- Hero headline: acknowledge time away, max 6 words
+- Story: what's changed, reason to return
+- CTA button: "COME BACK & SAVE" if offer, else "SEE WHAT'S NEW"`,
 
     'Product launch': `
-This is a product launch announcement email.
+Product launch announcement.
 - Tone: excited, visionary
-- Hero headline: announce the new product, max 6 words
-- Hero subline: what problem it solves
-- Story: vision behind the product, what makes it different, why it matters
-- Use real product names: ${(brandData.productNames || []).join(', ')}
-- CTA button: "SHOP THE NEW COLLECTION"
-- Urgency line: "Limited stock available"`,
+- Hero headline: announce new product, max 6 words
+- Story: vision, what makes it different
+- CTA button: "SHOP THE NEW COLLECTION"`,
   }
 
-  const instructions = emailTypeInstructions[emailType] || ''
+  const instructions = roleInstructions[emailType] || ''
 
   const prompt = `Write copy for a ${emailType} email for ${brandData.brandName}.
 
@@ -166,11 +353,11 @@ BRAND:
 - Mission: ${brandData.missionStatement || ''}
 - Offer: ${offer || 'none'}
 
-EMAIL TYPE INSTRUCTIONS:
+EMAIL INSTRUCTIONS:
 ${instructions}
 
 GLOBAL RULES:
-- Only use information provided above. Never invent facts, statistics, or details.
+- Only use information provided above. Never invent facts or details.
 - Write in the brand voice. Be specific to the niche and products.
 - Keep headlines punchy and short (max 8 words).
 - Keep paragraphs to 2-3 sentences max.
@@ -215,6 +402,8 @@ Return this exact JSON:
   throw new Error('Could not parse copy output. Please try again.')
 }
 
+// ─── EMAIL ASSEMBLY ───────────────────────────────────────────────────────────
+
 function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primaryColor, accentColor, bgColor, primaryTextColor, accentTextColor, accentForLightBg, logoUrl, productImageUrl, topProducts, isWelcome, isAbandoned, isPostPurchase, realQuote }) {
 
   const df = `'${fontPairing.display}',Georgia,'Times New Roman',serif`
@@ -258,14 +447,11 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
         <p style="margin:0 0 6px;font-family:${bf};font-size:13px;font-weight:600;color:#111111;">${p.name}</p>
         <a href="#" style="font-family:${bf};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${accentForLightBg};text-decoration:none;">SHOP NOW</a>
       </td>`).join('')
-
     return `
 <tr><td bgcolor="${bgColor}" style="padding:48px 32px;">
   <p style="margin:0 0 8px;font-family:${bf};font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${accentForLightBg};text-align:center;">${copy.product_label || 'FEATURED PRODUCTS'}</p>
   <h2 style="margin:0 0 28px;font-family:${df};font-size:28px;font-weight:700;color:#111111;text-align:center;">${copy.product_headline || ''}</h2>
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-    <tr>${cells}</tr>
-  </table>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>${cells}</tr></table>
 </td></tr>`
   }
 
@@ -278,14 +464,11 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
         <p style="margin:0 0 6px;font-family:${bf};font-size:13px;font-weight:600;color:#111111;">${p.name}</p>
         <a href="#" style="font-family:${bf};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${accentForLightBg};text-decoration:none;">LEARN MORE</a>
       </td>`).join('')
-
     return `
 <tr><td bgcolor="${bgColor}" style="padding:48px 32px;">
   <p style="margin:0 0 8px;font-family:${bf};font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${accentForLightBg};text-align:center;">${copy.product_label || 'YOU MIGHT ALSO LOVE'}</p>
-  <h2 style="margin:0 0 28px;font-family:${df};font-size:28px;font-weight:700;color:#111111;text-align:center;">${copy.product_headline || 'Complete Your Workshop'}</h2>
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-    <tr>${cells}</tr>
-  </table>
+  <h2 style="margin:0 0 28px;font-family:${df};font-size:28px;font-weight:700;color:#111111;text-align:center;">${copy.product_headline || 'Complete Your Collection'}</h2>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>${cells}</tr></table>
 </td></tr>`
   }
 
@@ -297,14 +480,6 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
   <p style="margin:0 0 16px;font-family:${bf};font-size:15px;line-height:1.8;color:#555555;">${copy.story_p1 || ''}</p>
   <p style="margin:0 0 16px;font-family:${bf};font-size:15px;line-height:1.8;color:#555555;">${copy.story_p2 || ''}</p>
   ${copy.story_p3 ? `<p style="margin:0;font-family:${bf};font-size:15px;line-height:1.8;color:#555555;">${copy.story_p3}</p>` : ''}
-</td></tr>`
-  }
-
-  function productImageBlock() {
-    if (!productImageUrl) return ''
-    return `
-<tr><td bgcolor="${bgColor}" style="padding:48px 40px;text-align:center;">
-  <img src="${productImageUrl}" width="480" style="display:block;margin:0 auto;max-width:100%;border:0;" alt="${brandData.productType}">
 </td></tr>`
   }
 
@@ -371,7 +546,7 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
   } else {
     sections += heroCopyBlock()
     sections += storyBlock()
-    sections += topProducts.length > 0 ? productGridBlock() : productImageBlock()
+    sections += topProducts.length > 0 ? productGridBlock() : ''
     sections += socialProofBlock()
     sections += ctaBandBlock()
   }
@@ -380,6 +555,8 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>@import url('${fontPairing.importUrl}');a{text-decoration:none;}img{border:0;}</style></head><body style="margin:0;padding:20px 0;background:#e8e8e8;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center" style="margin:0 auto;max-width:600px;">${sections}</table></body></html>`
 }
+
+// ─── FONT PAIRINGS ────────────────────────────────────────────────────────────
 
 function getFontPairing(tone) {
   const pairings = {
