@@ -25,27 +25,31 @@ export async function POST(request) {
       return NextResponse.json({ error: `Brand analysis failed: ${err.message}` }, { status: 500 })
     }
 
-    // Logo: check ogImage first, then look for logo in scraped images
+    // Logo detection — strict to avoid picking wrong images
     let logoUrl = null
+    const brandSlug = brandData.brandName.toLowerCase().replace(/\s+/g, '')
+
+    // Check ogImage only if it looks brand-specific
     if (scraped.meta.ogImage) {
       const og = scraped.meta.ogImage.toLowerCase()
-      // Only use ogImage if it looks like a logo
-      if (og.includes('logo') || og.includes('brand') || og.includes('icon')) {
+      if (og.includes('logo') || og.includes(brandSlug)) {
         logoUrl = scraped.meta.ogImage
       }
     }
-    // If no logo found yet, search scraped images for logo
+
+    // Search scraped images for logo
     if (!logoUrl) {
       const logoImg = scraped.images.find(img => {
         const src = img.src.toLowerCase()
         const alt = (img.alt || '').toLowerCase()
-        return src.includes('logo') || alt.includes('logo') || alt === brandData.brandName.toLowerCase()
+        return (
+          src.includes('logo') ||
+          alt.includes('logo') ||
+          alt === brandData.brandName.toLowerCase() ||
+          src.includes(brandSlug)
+        )
       })
       if (logoImg) logoUrl = logoImg.src
-    }
-    // Final fallback: use ogImage as-is even if not confirmed logo
-    if (!logoUrl && scraped.meta.ogImage) {
-      logoUrl = scraped.meta.ogImage
     }
 
     // Homepage hero: first non-logo image
