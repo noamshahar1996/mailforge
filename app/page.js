@@ -244,14 +244,15 @@ export default function MailForge() {
                   ))}
                 </div>
               </div>
-              {heroImage && (
-                <div style={s.field}>
-                  <label style={s.label}>Hero image detected <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>(from your homepage)</span></label>
-                  <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #e0e0e0', maxHeight: 160 }}>
-                    <img src={heroImage.src} alt="Hero" style={{ width: '100%', objectFit: 'cover', display: 'block', maxHeight: 160 }} />
+              <div style={s.field}>
+                <label style={s.label}>Logo URL <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>(optional — paste your logo image URL, or leave empty to use brand name)</span></label>
+                <input style={s.input} placeholder="https://yourbrand.com/logo.png" value={brand.logoUrl || ''} onChange={e => setBrandField('logoUrl')(e.target.value)} />
+                {brand.logoUrl && (
+                  <div style={{ marginTop: 8, padding: '8px 12px', background: '#f5f5f5', borderRadius: 6, display: 'inline-block' }}>
+                    <img src={brand.logoUrl} alt="Logo preview" style={{ height: 40, width: 'auto', display: 'block' }} onError={e => e.target.style.display = 'none'} />
                   </div>
-                </div>
-              )}
+                )}
+              </div>
               {images.length > 0 && (
                 <div style={s.field}>
                   <label style={s.label}>Product images <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>({selectedImages.length} selected — optional)</span></label>
