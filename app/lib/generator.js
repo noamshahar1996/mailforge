@@ -17,7 +17,6 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
     productImageUrl = generatedImages.find(i => i.type === 'product')?.url
   }
 
-  // For non-welcome emails only, use scraped images as hero fallback
   const isWelcome = emailType === 'Welcome email'
   if (!isWelcome) {
     if (!heroImageUrl && hasScrapedImages) heroImageUrl = productImages[0]?.src
@@ -128,7 +127,8 @@ Return this exact JSON:
   "product_headline": "...",
   "cta_headline": "...",
   "cta_button": "...",
-  "urgency_line": "..."
+  "urgency_line": "...",
+  "testimonial_name": "..."
 }`
 
   const response = await anthropic.messages.create({
@@ -232,12 +232,13 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
   function socialProofBlock() {
     const quote = realQuote && realQuote.length > 10
       ? realQuote
-      : `The ${(brandData.productNames || [])[0] || brandData.productType} completely changed how I work. The quality and precision is unlike anything I've used before.`
+      : `The ${(brandData.productNames || [])[0] || brandData.productType} completely changed my routine. The quality is unlike anything I've tried before.`
+    const attribution = copy.testimonial_name || 'Sarah M.'
     return `
 <tr><td bgcolor="#111111" style="padding:56px 48px;text-align:center;">
   <p style="margin:0 0 16px;font-family:${df};font-size:64px;line-height:0.6;color:${accentColor};">"</p>
   <p style="margin:0 0 20px;font-family:${df};font-size:22px;font-style:italic;line-height:1.6;color:#ffffff;">${quote}</p>
-  <p style="margin:0 0 12px;font-family:${bf};font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.45);">— VERIFIED CUSTOMER</p>
+  <p style="margin:0 0 12px;font-family:${bf};font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.45);">— ${attribution}, VERIFIED CUSTOMER</p>
   <p style="margin:0;font-size:20px;color:${accentColor};">★★★★★</p>
 </td></tr>`
   }
