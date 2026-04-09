@@ -1,7 +1,7 @@
 /**
- * MailForge Email Generator v13
- * Improved copy prompts per email type based on playbook.
- * No hero image for abandoned cart and post-purchase.
+ * MailForge Email Generator v14
+ * Fixed hero image selection — uses clean product image not promotional banner.
+ * Fixed post-purchase — no product grid, shows complementary products section instead.
  */
 
 export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages) {
@@ -21,15 +21,17 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   const isAbandoned = emailType === 'Abandoned cart'
   const isPostPurchase = emailType === 'Post-purchase'
 
-  // Only use hero image for flash sale, win-back, product launch
+  // Clean product image = first image with a real alt text (product name)
+  const cleanProductImage = productImages?.find(img => img.alt && img.alt.trim().length > 2)
+
+  // Hero image logic per email type
   if (!isWelcome && !isAbandoned && !isPostPurchase) {
-    if (!heroImageUrl && hasScrapedImages) heroImageUrl = productImages[0]?.src
+    // Flash sale, win-back, product launch: use clean product image as hero
+    if (!heroImageUrl && cleanProductImage) heroImageUrl = cleanProductImage.src
   }
 
-  if (!productImageUrl && hasScrapedImages) {
-    const cleanProduct = productImages?.find(img => img.alt && img.alt.trim().length > 2)
-    productImageUrl = cleanProduct?.src || productImages[0]?.src
-  }
+  // Product image for single product display
+  if (!productImageUrl && cleanProductImage) productImageUrl = cleanProductImage.src
 
   const fontPairing = getFontPairing(brandData.brandTone)
   const logoUrl = brandData.logoUrl || null
@@ -111,7 +113,7 @@ This is abandoned cart email #1, sent 30 minutes after abandonment.
 - Do NOT lead with a discount — create curiosity instead
 - Use mystery mechanic: hint that something special has been applied to their cart
 - Subject line should imply momentum, NOT guilt. Example: "Your order is almost ready"
-- Hero headline: short, direct, implies their cart is waiting. Max 6 words. Example: "Your cart is ready"
+- Hero headline: short, direct, implies their cart is waiting. Max 6 words.
 - Hero subline: one sentence reminding them what they left behind using these product names: ${topProducts.map(p => p.name).join(', ')}
 - Story: 2 short paragraphs — emotional connection to the craft/product, then mystery offer hint
 - CTA button: "COMPLETE MY ORDER"
@@ -123,10 +125,16 @@ This is a post-purchase thank you email sent right after buying.
 - Tone: celebratory, warm, reassuring
 - Hero headline: celebrate their purchase, max 6 words. Example: "Your order is confirmed"
 - Hero subline: one sentence about what to expect next
-- Story: what happens next (shipping/processing), invite them into the community
-- Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
+- Story section label: "WHAT'S NEXT"
+- Story headline: about what happens now — shipping, preparation
+- story_p1: what happens next with their order (shipping/processing)
+- story_p2: a tip about how to get the best from their new product
+- story_p3: invite them to the community or follow on social
+- product_label: "YOU MIGHT ALSO LOVE"
+- product_headline: suggest complementary products from: ${(brandData.productNames || []).join(', ')}
 - CTA button: "TRACK MY ORDER"
-- Urgency line: a helpful tip about the product they bought`,
+- cta_headline: "Stay updated on your shipment"
+- Urgency line: a helpful care tip for their new product`,
 
     'Flash sale': `
 This is a flash sale promotional email.
@@ -285,6 +293,27 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
 </td></tr>`
   }
 
+  function postPurchaseProductBlock() {
+    // For post-purchase: show complementary products with softer CTA
+    if (topProducts.length === 0) return ''
+    const colWidth = topProducts.length === 1 ? 480 : topProducts.length === 2 ? 260 : 170
+    const cells = topProducts.map(p => `
+      <td width="${colWidth}" style="padding:8px;text-align:center;vertical-align:top;">
+        <img src="${p.src}" width="${colWidth - 16}" style="display:block;margin:0 auto 10px;max-width:100%;border:0;border-radius:4px;" alt="${p.name}">
+        <p style="margin:0 0 6px;font-family:${bf};font-size:13px;font-weight:600;color:#111111;">${p.name}</p>
+        <a href="#" style="font-family:${bf};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${accentForLightBg};text-decoration:none;">LEARN MORE</a>
+      </td>`).join('')
+
+    return `
+<tr><td bgcolor="${bgColor}" style="padding:48px 32px;">
+  <p style="margin:0 0 8px;font-family:${bf};font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${accentForLightBg};text-align:center;">${copy.product_label || 'YOU MIGHT ALSO LOVE'}</p>
+  <h2 style="margin:0 0 28px;font-family:${df};font-size:28px;font-weight:700;color:#111111;text-align:center;">${copy.product_headline || 'Complete Your Workshop'}</h2>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr>${cells}</tr>
+  </table>
+</td></tr>`
+  }
+
   function storyBlock() {
     return `
 <tr><td bgcolor="#ffffff" style="padding:56px 48px;">
@@ -356,6 +385,12 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
     sections += heroCopyBlock()
     sections += productGridBlock()
     sections += storyBlock()
+    sections += socialProofBlock()
+    sections += ctaBandBlock()
+  } else if (isPostPurchase) {
+    sections += heroCopyBlock()
+    sections += storyBlock()
+    sections += postPurchaseProductBlock()
     sections += socialProofBlock()
     sections += ctaBandBlock()
   } else {
