@@ -25,29 +25,18 @@ export async function POST(request) {
       return NextResponse.json({ error: `Brand analysis failed: ${err.message}` }, { status: 500 })
     }
 
-    // Logo detection — strict to avoid picking wrong images
+    // Logo: only use if explicitly identified as a logo
     let logoUrl = null
-    const brandSlug = brandData.brandName.toLowerCase().replace(/\s+/g, '')
 
-    // Check ogImage only if it looks brand-specific
-    if (scraped.meta.ogImage) {
-      const og = scraped.meta.ogImage.toLowerCase()
-      if (og.includes('logo') || og.includes(brandSlug)) {
-        logoUrl = scraped.meta.ogImage
-      }
+    if (scraped.meta.ogImage && scraped.meta.ogImage.toLowerCase().includes('logo')) {
+      logoUrl = scraped.meta.ogImage
     }
 
-    // Search scraped images for logo
     if (!logoUrl) {
       const logoImg = scraped.images.find(img => {
         const src = img.src.toLowerCase()
         const alt = (img.alt || '').toLowerCase()
-        return (
-          src.includes('logo') ||
-          alt.includes('logo') ||
-          alt === brandData.brandName.toLowerCase() ||
-          src.includes(brandSlug)
-        )
+        return src.includes('logo') || alt === 'logo' || alt.includes('site logo') || alt.includes('brand logo')
       })
       if (logoImg) logoUrl = logoImg.src
     }
