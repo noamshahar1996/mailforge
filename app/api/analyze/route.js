@@ -25,7 +25,30 @@ export async function POST(request) {
       return NextResponse.json({ error: `Brand analysis failed: ${err.message}` }, { status: 500 })
     }
 
-    // Homepage hero: first large image scraped, skip logos/icons only
+    // Logo: check ogImage first, then look for logo in scraped images
+    let logoUrl = null
+    if (scraped.meta.ogImage) {
+      const og = scraped.meta.ogImage.toLowerCase()
+      // Only use ogImage if it looks like a logo
+      if (og.includes('logo') || og.includes('brand') || og.includes('icon')) {
+        logoUrl = scraped.meta.ogImage
+      }
+    }
+    // If no logo found yet, search scraped images for logo
+    if (!logoUrl) {
+      const logoImg = scraped.images.find(img => {
+        const src = img.src.toLowerCase()
+        const alt = (img.alt || '').toLowerCase()
+        return src.includes('logo') || alt.includes('logo') || alt === brandData.brandName.toLowerCase()
+      })
+      if (logoImg) logoUrl = logoImg.src
+    }
+    // Final fallback: use ogImage as-is even if not confirmed logo
+    if (!logoUrl && scraped.meta.ogImage) {
+      logoUrl = scraped.meta.ogImage
+    }
+
+    // Homepage hero: first non-logo image
     const homepageHero = scraped.images.find(img => {
       const src = img.src.toLowerCase()
       if (src.includes('logo') || src.includes('icon') || src.includes('favicon') || src.includes('pixel')) return false
@@ -43,7 +66,7 @@ export async function POST(request) {
     }).slice(0, 12)
 
     return NextResponse.json({
-      brandData: { ...brandData, logoUrl: scraped.meta.ogImage || null },
+      brandData: { ...brandData, logoUrl },
       images: usableImages,
       heroImage: homepageHero,
       rawMeta: scraped.meta,
