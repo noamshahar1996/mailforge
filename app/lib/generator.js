@@ -1,7 +1,7 @@
 /**
  * MailForge Email Generator v13
  * Improved copy prompts per email type based on playbook.
- * Better hero image selection per email type.
+ * No hero image for abandoned cart and post-purchase.
  */
 
 export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages) {
@@ -21,16 +21,9 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   const isAbandoned = emailType === 'Abandoned cart'
   const isPostPurchase = emailType === 'Post-purchase'
 
-  // Hero image logic per email type
-  if (!isWelcome) {
-    if (isAbandoned || isPostPurchase) {
-      // Use first clean product image (with alt text) for abandoned/post-purchase
-      const cleanProduct = productImages?.find(img => img.alt && img.alt.trim().length > 2)
-      if (cleanProduct) heroImageUrl = cleanProduct.src
-    } else {
-      // Other types: use first scraped image
-      if (!heroImageUrl && hasScrapedImages) heroImageUrl = productImages[0]?.src
-    }
+  // Only use hero image for flash sale, win-back, product launch
+  if (!isWelcome && !isAbandoned && !isPostPurchase) {
+    if (!heroImageUrl && hasScrapedImages) heroImageUrl = productImages[0]?.src
   }
 
   if (!productImageUrl && hasScrapedImages) {
@@ -88,7 +81,7 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
     fontPairing, primaryColor, accentColor, bgColor,
     primaryTextColor, accentTextColor, accentForLightBg,
     logoUrl, heroImageUrl, productImageUrl,
-    topProducts, isWelcome,
+    topProducts, isWelcome, isAbandoned, isPostPurchase,
     realQuote: brandData.bestTestimonialQuote || null
   })
 
@@ -110,37 +103,37 @@ This is email #1 in the welcome flow. Subscriber just signed up — they are war
 - Hero headline: warm welcome, max 6 words
 - Hero subline: one sentence about what the brand does
 - Story: brief brand intro using only real USPs, max 2 paragraphs
-- CTA button: "SHOP NOW & SAVE [X]%" if offer exists, else "SHOP NOW"
-- Do NOT mention the discount in the story section — it's already shown above`,
+- CTA button: "SHOP NOW & SAVE" if offer exists, else "SHOP NOW"
+- Do NOT mention the discount in the story section`,
 
     'Abandoned cart': `
 This is abandoned cart email #1, sent 30 minutes after abandonment.
 - Do NOT lead with a discount — create curiosity instead
 - Use mystery mechanic: hint that something special has been applied to their cart
-- Subject line should imply momentum, NOT guilt. Example: "Your order is almost ready" or "We saved your cart"
-- Hero headline: short, direct, implies their cart is waiting. Max 6 words.
-- Hero subline: one sentence reminding them what they left behind using product names: ${topProducts.map(p => p.name).join(', ')}
-- Story: 2 short paragraphs — emotional connection to the craft/product, then the mystery offer hint
+- Subject line should imply momentum, NOT guilt. Example: "Your order is almost ready"
+- Hero headline: short, direct, implies their cart is waiting. Max 6 words. Example: "Your cart is ready"
+- Hero subline: one sentence reminding them what they left behind using these product names: ${topProducts.map(p => p.name).join(', ')}
+- Story: 2 short paragraphs — emotional connection to the craft/product, then mystery offer hint
 - CTA button: "COMPLETE MY ORDER"
-- Urgency line: "Your cart expires soon"
-- Do NOT reveal any discount amount — keep it mysterious`,
+- Urgency line: "Your cart expires soon — don't miss out"
+- Do NOT reveal any discount amount`,
 
     'Post-purchase': `
-This is a post-purchase thank you email sent right after a customer buys.
+This is a post-purchase thank you email sent right after buying.
 - Tone: celebratory, warm, reassuring
-- Hero headline: celebrate their purchase, max 6 words. Example: "Your order is on its way"
-- Hero subline: one sentence about what to expect
-- Story: what happens next (shipping/processing), then invite them into the community
+- Hero headline: celebrate their purchase, max 6 words. Example: "Your order is confirmed"
+- Hero subline: one sentence about what to expect next
+- Story: what happens next (shipping/processing), invite them into the community
 - Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
 - CTA button: "TRACK MY ORDER"
-- Urgency line: share a tip or what to expect when product arrives`,
+- Urgency line: a helpful tip about the product they bought`,
 
     'Flash sale': `
-This is a flash sale / promotional email.
+This is a flash sale promotional email.
 - Tone: urgent, exciting
 - Hero headline: lead with the offer or urgency, max 6 words
 - Hero subline: what they save and why now
-- Story: why this sale is happening, what products are included
+- Story: why this sale, what products are included
 - Offer: ${offer || 'limited time discount'}
 - CTA button: "SHOP THE SALE"
 - Urgency line: "Sale ends soon — don't miss out"`,
@@ -150,7 +143,7 @@ This is a win-back email for inactive subscribers.
 - Tone: honest, warm, not pushy
 - Hero headline: acknowledge the time away, max 6 words. Example: "We've missed you"
 - Hero subline: one sentence about what's new or what they're missing
-- Story: honest reconnection — what's changed or improved, one compelling reason to return
+- Story: honest reconnection — what's changed, one compelling reason to return
 - Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
 - CTA button: "COME BACK & SAVE" if offer exists, else "SEE WHAT'S NEW"
 - Urgency line: make it feel like a limited opportunity`,
@@ -160,7 +153,7 @@ This is a product launch announcement email.
 - Tone: excited, visionary
 - Hero headline: announce the new product, max 6 words
 - Hero subline: what problem it solves
-- Story: the vision behind the product, what makes it different, why it matters to the audience
+- Story: vision behind the product, what makes it different, why it matters
 - Use real product names: ${(brandData.productNames || []).join(', ')}
 - CTA button: "SHOP THE NEW COLLECTION"
 - Urgency line: "Limited stock available"`,
@@ -232,10 +225,11 @@ Return this exact JSON:
   throw new Error('Could not parse copy output. Please try again.')
 }
 
-function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primaryColor, accentColor, bgColor, primaryTextColor, accentTextColor, accentForLightBg, logoUrl, heroImageUrl, productImageUrl, topProducts, isWelcome, realQuote }) {
+function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primaryColor, accentColor, bgColor, primaryTextColor, accentTextColor, accentForLightBg, logoUrl, heroImageUrl, productImageUrl, topProducts, isWelcome, isAbandoned, isPostPurchase, realQuote }) {
 
   const df = `'${fontPairing.display}',Georgia,'Times New Roman',serif`
   const bf = `'${fontPairing.body}',Arial,Helvetica,sans-serif`
+  const showHero = !isWelcome && !isAbandoned && !isPostPurchase
 
   function headerBlock() {
     const content = logoUrl
@@ -245,7 +239,7 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
   }
 
   function heroImageBlock() {
-    if (!heroImageUrl) return ''
+    if (!heroImageUrl || !showHero) return ''
     return `<tr><td style="padding:0;margin:0;line-height:0;font-size:0;" bgcolor="${primaryColor}"><img src="${heroImageUrl}" width="600" style="display:block;width:600px;max-width:100%;border:0;line-height:100%;outline:none;" alt="${brandData.brandName}"></td></tr>`
   }
 
@@ -262,8 +256,9 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
   }
 
   function heroCopyBlock() {
+    const padding = isWelcome ? '32px 48px 48px' : '56px 48px'
     return `
-<tr><td bgcolor="${primaryColor}" style="padding:${isWelcome ? '32px 48px 48px' : '56px 48px'};text-align:center;">
+<tr><td bgcolor="${primaryColor}" style="padding:${padding};text-align:center;">
   <h1 style="margin:0 0 14px;font-family:${df};font-size:46px;font-weight:700;line-height:1.1;color:${primaryTextColor};">${copy.hero_headline || ''}</h1>
   <p style="margin:0 0 28px;font-family:${bf};font-size:17px;line-height:1.6;color:${primaryTextColor};opacity:0.85;">${copy.hero_subline || ''}</p>
   <a href="#" style="display:inline-block;background:${accentColor};color:${accentTextColor};font-family:${bf};font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;text-decoration:none;padding:16px 48px;border-radius:2px;">${copy.cta_button || 'SHOP NOW'}</a>
