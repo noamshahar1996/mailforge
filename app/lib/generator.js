@@ -1,37 +1,19 @@
 /**
- * MailForge Email Generator v14
- * Fixed hero image selection — uses clean product image not promotional banner.
- * Fixed post-purchase — no product grid, shows complementary products section instead.
+ * MailForge Email Generator v15
+ * Text-first layout for all email types — no hero images.
+ * Clean, focused, consistent across all 6 types.
  */
 
 export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages) {
-
-  const hasGeneratedImages = generatedImages && generatedImages.length > 0
-  const hasScrapedImages = productImages && productImages.length > 0
-
-  let heroImageUrl = null
-  let productImageUrl = null
-
-  if (hasGeneratedImages) {
-    heroImageUrl = generatedImages.find(i => i.type === 'hero')?.url
-    productImageUrl = generatedImages.find(i => i.type === 'product')?.url
-  }
 
   const isWelcome = emailType === 'Welcome email'
   const isAbandoned = emailType === 'Abandoned cart'
   const isPostPurchase = emailType === 'Post-purchase'
 
-  // Clean product image = first image with a real alt text (product name)
+  // No hero images — use clean product image only for product section
+  let productImageUrl = null
   const cleanProductImage = productImages?.find(img => img.alt && img.alt.trim().length > 2)
-
-  // Hero image logic per email type
-  if (!isWelcome && !isAbandoned && !isPostPurchase) {
-    // Flash sale, win-back, product launch: use clean product image as hero
-    if (!heroImageUrl && cleanProductImage) heroImageUrl = cleanProductImage.src
-  }
-
-  // Product image for single product display
-  if (!productImageUrl && cleanProductImage) productImageUrl = cleanProductImage.src
+  if (cleanProductImage) productImageUrl = cleanProductImage.src
 
   const fontPairing = getFontPairing(brandData.brandTone)
   const logoUrl = brandData.logoUrl || null
@@ -82,7 +64,7 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
     brandData, emailType, offer, copy,
     fontPairing, primaryColor, accentColor, bgColor,
     primaryTextColor, accentTextColor, accentForLightBg,
-    logoUrl, heroImageUrl, productImageUrl,
+    logoUrl, productImageUrl,
     topProducts, isWelcome, isAbandoned, isPostPurchase,
     realQuote: brandData.bestTestimonialQuote || null
   })
@@ -127,7 +109,7 @@ This is a post-purchase thank you email sent right after buying.
 - Hero subline: one sentence about what to expect next
 - Story section label: "WHAT'S NEXT"
 - Story headline: about what happens now — shipping, preparation
-- story_p1: what happens next with their order (shipping/processing)
+- story_p1: what happens next with their order
 - story_p2: a tip about how to get the best from their new product
 - story_p3: invite them to the community or follow on social
 - product_label: "YOU MIGHT ALSO LOVE"
@@ -233,22 +215,16 @@ Return this exact JSON:
   throw new Error('Could not parse copy output. Please try again.')
 }
 
-function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primaryColor, accentColor, bgColor, primaryTextColor, accentTextColor, accentForLightBg, logoUrl, heroImageUrl, productImageUrl, topProducts, isWelcome, isAbandoned, isPostPurchase, realQuote }) {
+function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primaryColor, accentColor, bgColor, primaryTextColor, accentTextColor, accentForLightBg, logoUrl, productImageUrl, topProducts, isWelcome, isAbandoned, isPostPurchase, realQuote }) {
 
   const df = `'${fontPairing.display}',Georgia,'Times New Roman',serif`
   const bf = `'${fontPairing.body}',Arial,Helvetica,sans-serif`
-  const showHero = !isWelcome && !isAbandoned && !isPostPurchase
 
   function headerBlock() {
     const content = logoUrl
       ? `<img src="${logoUrl}" height="60" style="display:block;height:60px;width:auto;margin:0 auto;border:0;" alt="${brandData.brandName}">`
       : `<span style="font-family:${df};font-size:20px;letter-spacing:6px;text-transform:uppercase;color:${primaryTextColor};">${brandData.brandName}</span>`
     return `<tr><td bgcolor="${primaryColor}" style="padding:20px 40px;text-align:center;">${content}</td></tr>`
-  }
-
-  function heroImageBlock() {
-    if (!heroImageUrl || !showHero) return ''
-    return `<tr><td style="padding:0;margin:0;line-height:0;font-size:0;" bgcolor="${primaryColor}"><img src="${heroImageUrl}" width="600" style="display:block;width:600px;max-width:100%;border:0;line-height:100%;outline:none;" alt="${brandData.brandName}"></td></tr>`
   }
 
   function discountBlock() {
@@ -294,7 +270,6 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
   }
 
   function postPurchaseProductBlock() {
-    // For post-purchase: show complementary products with softer CTA
     if (topProducts.length === 0) return ''
     const colWidth = topProducts.length === 1 ? 480 : topProducts.length === 2 ? 260 : 170
     const cells = topProducts.map(p => `
@@ -394,7 +369,6 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
     sections += socialProofBlock()
     sections += ctaBandBlock()
   } else {
-    sections += heroImageBlock()
     sections += heroCopyBlock()
     sections += storyBlock()
     sections += topProducts.length > 0 ? productGridBlock() : productImageBlock()
