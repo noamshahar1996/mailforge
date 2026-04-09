@@ -1,7 +1,13 @@
 'use client'
 import { useState } from 'react'
 
-const EMAIL_TYPES = [
+const FLOWS = [
+  { type: 'welcome', icon: '👋', name: 'Welcome Flow', desc: '4 emails — discount delivery, education, founder story, urgency', emails: 4 },
+  { type: 'post-purchase', icon: '📦', name: 'Post-Purchase Flow', desc: '4 emails — thank you, how to use, social proof, come back', emails: 4 },
+  { type: 'abandoned-cart', icon: '🛒', name: 'Abandoned Cart Flow', desc: '3 emails — remind, build trust, push with urgency', emails: 3 },
+]
+
+const SINGLE_TYPES = [
   { type: 'Welcome email', icon: '👋', desc: 'First impression for new subscribers' },
   { type: 'Abandoned cart', icon: '🛒', desc: 'Recover lost checkouts' },
   { type: 'Post-purchase', icon: '📦', desc: 'Thank you + upsell' },
@@ -47,17 +53,6 @@ function StepTab({ n, label, currentStep }) {
   )
 }
 
-function Spinner({ label, sub }) {
-  return (
-    <div style={{ textAlign: 'center', padding: '60px 0' }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{ width: 36, height: 36, border: '2px solid #e5e5e5', borderTopColor: '#111', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-      <div style={{ fontSize: 14, color: '#444', marginBottom: 5 }}>{label}</div>
-      {sub && <div style={{ fontSize: 12, color: '#aaa' }}>{sub}</div>}
-    </div>
-  )
-}
-
 export default function MailForge() {
   const [step, setStep] = useState(1)
   const [url, setUrl] = useState('')
@@ -67,15 +62,22 @@ export default function MailForge() {
   const [images, setImages] = useState([])
   const [heroImage, setHeroImage] = useState(null)
   const [selectedImages, setSelectedImages] = useState([])
+
+  // Step 3 state
+  const [mode, setMode] = useState(null) // 'flow' or 'single'
+  const [flowType, setFlowType] = useState(null)
   const [emailType, setEmailType] = useState('Welcome email')
   const [offer, setOffer] = useState('')
+
+  // Step 4 state
   const [generating, setGenerating] = useState(false)
   const [genStatus, setGenStatus] = useState('')
-  const [result, setResult] = useState(null)
   const [genError, setGenError] = useState('')
+  const [result, setResult] = useState(null) // single email result
+  const [flowEmails, setFlowEmails] = useState([]) // flow result
+  const [activeEmailIndex, setActiveEmailIndex] = useState(0)
   const [activeTab, setActiveTab] = useState('preview')
   const [copied, setCopied] = useState(false)
-  const [generatedImages, setGeneratedImages] = useState([])
 
   async function analyzeUrl() {
     if (!url.trim()) return
@@ -105,41 +107,38 @@ export default function MailForge() {
     setGenerating(true)
     setGenError('')
     setResult(null)
-    setGeneratedImages([])
+    setFlowEmails([])
+    setActiveEmailIndex(0)
 
     try {
-      setGenStatus('Finding the best visuals for your brand...')
-      let aiImages = []
-      try {
-        const imgRes = await fetch('/api/imagine', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ brandData: brand, emailType, productImages: images, heroImage }),
-        })
-        if (imgRes.ok) {
-          const imgData = await imgRes.json()
-          aiImages = imgData.images || []
-          setGeneratedImages(aiImages)
-        }
-      } catch (imgErr) {
-        console.log('Image step failed, continuing without:', imgErr)
+      if (mode === 'flow') {
+        setGenStatus(`Generating ${FLOWS.find(f => f.type === flowType)?.emails || 4} emails in sequence...`)
+      } else {
+        setGenStatus('Writing copy and building email layout...')
       }
 
-      setGenStatus('Writing copy and building email layout...')
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           brandData: brand,
-          emailType,
+          emailType: mode === 'single' ? emailType : null,
           offer,
           selectedImages,
-          generatedImages: aiImages,
+          generatedImages: [],
+          mode,
+          flowType: mode === 'flow' ? flowType : null,
         }),
       })
+
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Generation failed')
-      setResult(data)
+
+      if (mode === 'flow') {
+        setFlowEmails(data.emails || [])
+      } else {
+        setResult(data)
+      }
       setActiveTab('preview')
     } catch (err) {
       setGenError(err.message)
@@ -149,30 +148,29 @@ export default function MailForge() {
     }
   }
 
-  function toggleImage(img) {
-    setSelectedImages(prev => prev.find(i => i.src === img.src) ? prev.filter(i => i.src !== img.src) : [...prev, img])
-  }
-
   function setBrandField(key) { return (val) => setBrand(b => ({ ...b, [key]: val })) }
 
-  function copyHtml() {
-    if (!result?.html) return
-    navigator.clipboard.writeText(result.html).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) })
+  function copyHtml(html) {
+    if (!html) return
+    navigator.clipboard.writeText(html).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) })
   }
 
-  function downloadHtml() {
-    if (!result?.html) return
-    const blob = new Blob([result.html], { type: 'text/html' })
+  function downloadHtml(html, filename) {
+    if (!html) return
+    const blob = new Blob([html], { type: 'text/html' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `${brand?.brandName || 'email'}-${emailType.replace(/ /g, '-').toLowerCase()}.html`
+    a.download = filename
     a.click()
   }
 
   function reset() {
     setStep(1); setUrl(''); setBrand(null); setImages([]); setHeroImage(null)
-    setSelectedImages([]); setResult(null); setGenError(''); setAnalyzeError(''); setGeneratedImages([])
+    setSelectedImages([]); setResult(null); setFlowEmails([]); setGenError('')
+    setAnalyzeError(''); setMode(null); setFlowType(null); setOffer('')
   }
+
+  const currentEmail = mode === 'flow' ? flowEmails[activeEmailIndex] : result
 
   return (
     <div style={s.page}>
@@ -192,6 +190,7 @@ export default function MailForge() {
 
         <div style={s.body}>
 
+          {/* STEP 1 */}
           {step === 1 && (
             <div>
               <div style={s.sectionLabel}>Enter your website</div>
@@ -202,12 +201,20 @@ export default function MailForge() {
                 <input style={s.input} placeholder="https://yourbrand.com" value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && !analyzing && analyzeUrl()} disabled={analyzing} />
               </div>
               {analyzing
-                ? <Spinner label="Analyzing your website..." sub="Extracting brand identity, products, and colors" />
+                ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+                    <div style={{ width: 36, height: 36, border: '2px solid #e5e5e5', borderTopColor: '#111', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+                    <div style={{ fontSize: 14, color: '#444' }}>Analyzing your website...</div>
+                    <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>Extracting brand identity, products, and colors</div>
+                  </div>
+                )
                 : <div style={{ ...s.actions, justifyContent: 'flex-end' }}><button style={{ ...s.btnPrimary, ...(!url.trim() ? { opacity: 0.4, cursor: 'not-allowed' } : {}) }} onClick={analyzeUrl} disabled={!url.trim()}>Analyze website →</button></div>
               }
             </div>
           )}
 
+          {/* STEP 2 */}
           {step === 2 && brand && (
             <div>
               <div style={s.sectionLabel}>Review brand data</div>
@@ -245,7 +252,7 @@ export default function MailForge() {
                 </div>
               </div>
               <div style={s.field}>
-                <label style={s.label}>Logo URL <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>(optional — paste your logo image URL, or leave empty to use brand name)</span></label>
+                <label style={s.label}>Logo URL <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>(optional — paste your logo image URL)</span></label>
                 <input style={s.input} placeholder="https://yourbrand.com/logo.png" value={brand.logoUrl || ''} onChange={e => setBrandField('logoUrl')(e.target.value)} />
                 {brand.logoUrl && (
                   <div style={{ marginTop: 8, padding: '8px 12px', background: '#f5f5f5', borderRadius: 6, display: 'inline-block' }}>
@@ -260,7 +267,7 @@ export default function MailForge() {
                     {images.map((img, i) => {
                       const selected = selectedImages.find(x => x.src === img.src)
                       return (
-                        <div key={i} onClick={() => toggleImage(img)} style={{ borderRadius: 8, overflow: 'hidden', cursor: 'pointer', position: 'relative', border: selected ? '2px solid #111' : '2px solid transparent', background: '#f5f5f5', aspectRatio: '1' }}>
+                        <div key={i} onClick={() => setSelectedImages(prev => prev.find(x => x.src === img.src) ? prev.filter(x => x.src !== img.src) : [...prev, img])} style={{ borderRadius: 8, overflow: 'hidden', cursor: 'pointer', position: 'relative', border: selected ? '2px solid #111' : '2px solid transparent', background: '#f5f5f5', aspectRatio: '1' }}>
                           <img src={img.src} alt={img.alt || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => e.target.style.display = 'none'} />
                           {selected && <div style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%', background: '#111', color: '#fff', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</div>}
                         </div>
@@ -276,29 +283,92 @@ export default function MailForge() {
             </div>
           )}
 
+          {/* STEP 3 */}
           {step === 3 && (
             <div>
-              <div style={s.sectionLabel}>Choose email type</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
-                {EMAIL_TYPES.map(({ type, icon, desc }) => (
-                  <div key={type} onClick={() => setEmailType(type)} style={{ border: emailType === type ? '2px solid #111' : '1px solid #e5e5e5', borderRadius: 10, padding: '14px 12px', cursor: 'pointer', background: emailType === type ? '#f9f9f9' : '#fff' }}>
-                    <div style={{ fontSize: 20, marginBottom: 7 }}>{icon}</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#111', marginBottom: 3 }}>{type}</div>
-                    <div style={{ fontSize: 11, color: '#999' }}>{desc}</div>
+              <div style={s.sectionLabel}>What do you want to generate?</div>
+
+              {/* Mode selection */}
+              {!mode && (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                    <div onClick={() => setMode('flow')} style={{ border: '1px solid #e5e5e5', borderRadius: 12, padding: '20px 16px', cursor: 'pointer', textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, marginBottom: 10 }}>📧</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 6 }}>Complete Flow</div>
+                      <div style={{ fontSize: 12, color: '#888', lineHeight: 1.5 }}>Generate a full email sequence — welcome, post-purchase, or abandoned cart</div>
+                    </div>
+                    <div onClick={() => setMode('single')} style={{ border: '1px solid #e5e5e5', borderRadius: 12, padding: '20px 16px', cursor: 'pointer', textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, marginBottom: 10 }}>✉️</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 6 }}>Single Email</div>
+                      <div style={{ fontSize: 12, color: '#888', lineHeight: 1.5 }}>Generate one email — welcome, flash sale, win-back, and more</div>
+                    </div>
                   </div>
-                ))}
-              </div>
-              <div style={s.field}>
-                <label style={s.label}>Discount code <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>(optional — will appear prominently in the email)</span></label>
-                <input style={s.input} placeholder="e.g. WELCOME20, SAVE15, FREESHIP..." value={offer} onChange={e => setOffer(e.target.value)} />
-              </div>
-              <div style={s.actions}>
-                <button style={s.btnSecondary} onClick={() => setStep(2)}>← Back</button>
-                <button style={s.btnPrimary} onClick={generate}>Generate email →</button>
-              </div>
+                  <div style={{ ...s.actions, justifyContent: 'flex-start' }}>
+                    <button style={s.btnSecondary} onClick={() => setStep(2)}>← Back</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Flow selection */}
+              {mode === 'flow' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                    <button onClick={() => setMode(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#888', padding: 0 }}>← Change</button>
+                    <span style={{ fontSize: 13, color: '#888' }}>Complete Flow</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+                    {FLOWS.map(f => (
+                      <div key={f.type} onClick={() => setFlowType(f.type)} style={{ border: flowType === f.type ? '2px solid #111' : '1px solid #e5e5e5', borderRadius: 10, padding: '14px 16px', cursor: 'pointer', background: flowType === f.type ? '#f9f9f9' : '#fff', display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div style={{ fontSize: 24 }}>{f.icon}</div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 2 }}>{f.name}</div>
+                          <div style={{ fontSize: 12, color: '#888' }}>{f.desc}</div>
+                        </div>
+                        <div style={{ marginLeft: 'auto', fontSize: 11, color: '#aaa', background: '#f5f5f5', padding: '3px 8px', borderRadius: 10 }}>{f.emails} emails</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={s.field}>
+                    <label style={s.label}>Discount code <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>(optional)</span></label>
+                    <input style={s.input} placeholder="e.g. WELCOME20, SAVE15..." value={offer} onChange={e => setOffer(e.target.value)} />
+                  </div>
+                  <div style={s.actions}>
+                    <button style={s.btnSecondary} onClick={() => setMode(null)}>← Back</button>
+                    <button style={{ ...s.btnPrimary, ...(!flowType ? { opacity: 0.4, cursor: 'not-allowed' } : {}) }} onClick={generate} disabled={!flowType}>Generate flow →</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Single email selection */}
+              {mode === 'single' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                    <button onClick={() => setMode(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#888', padding: 0 }}>← Change</button>
+                    <span style={{ fontSize: 13, color: '#888' }}>Single Email</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
+                    {SINGLE_TYPES.map(({ type, icon, desc }) => (
+                      <div key={type} onClick={() => setEmailType(type)} style={{ border: emailType === type ? '2px solid #111' : '1px solid #e5e5e5', borderRadius: 10, padding: '14px 12px', cursor: 'pointer', background: emailType === type ? '#f9f9f9' : '#fff' }}>
+                        <div style={{ fontSize: 20, marginBottom: 7 }}>{icon}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#111', marginBottom: 3 }}>{type}</div>
+                        <div style={{ fontSize: 11, color: '#999' }}>{desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={s.field}>
+                    <label style={s.label}>Discount code <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400 }}>(optional)</span></label>
+                    <input style={s.input} placeholder="e.g. WELCOME20, SAVE15..." value={offer} onChange={e => setOffer(e.target.value)} />
+                  </div>
+                  <div style={s.actions}>
+                    <button style={s.btnSecondary} onClick={() => setMode(null)}>← Back</button>
+                    <button style={s.btnPrimary} onClick={generate}>Generate email →</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
+          {/* STEP 4 */}
           {step === 4 && (
             <div>
               {generating && (
@@ -306,7 +376,9 @@ export default function MailForge() {
                   <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
                   <div style={{ width: 36, height: 36, border: '2px solid #e5e5e5', borderTopColor: '#111', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
                   <div style={{ fontSize: 14, color: '#444', marginBottom: 5 }}>{genStatus || 'Generating...'}</div>
-                  <div style={{ fontSize: 12, color: '#aaa' }}>This takes 15-30 seconds</div>
+                  <div style={{ fontSize: 12, color: '#aaa' }}>
+                    {mode === 'flow' ? 'This takes 60–90 seconds for a full flow' : 'This takes 15–30 seconds'}
+                  </div>
                 </div>
               )}
 
@@ -320,7 +392,75 @@ export default function MailForge() {
                 </div>
               )}
 
-              {result && !generating && (
+              {/* Flow result */}
+              {!generating && flowEmails.length > 0 && (
+                <div>
+                  <div style={s.successBox}>✅ {flowEmails.length} emails generated successfully</div>
+
+                  {/* Email tabs */}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+                    {flowEmails.map((email, i) => (
+                      <button key={i} onClick={() => { setActiveEmailIndex(i); setActiveTab('preview') }} style={{ fontSize: 11, padding: '6px 12px', borderRadius: 20, cursor: 'pointer', fontWeight: activeEmailIndex === i ? 700 : 400, background: activeEmailIndex === i ? '#111' : 'transparent', color: activeEmailIndex === i ? '#fff' : '#666', border: activeEmailIndex === i ? 'none' : '1px solid #e0e0e0' }}>
+                        Email {i + 1} {email.isPlainText ? '(Plain text)' : ''}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Current email info */}
+                  {currentEmail && (
+                    <div>
+                      <div style={{ marginBottom: 12, padding: '10px 14px', background: '#f9f9f9', borderRadius: 8, border: '1px solid #e5e5e5' }}>
+                        <div style={{ fontSize: 11, color: '#aaa', marginBottom: 2 }}>{flowEmails[activeEmailIndex]?.label}</div>
+                        <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>{flowEmails[activeEmailIndex]?.sendTime}</div>
+                        <div style={{ fontSize: 11, color: '#aaa', marginBottom: 2 }}>Subject line</div>
+                        <div style={{ fontSize: 13, color: '#111', fontWeight: 600, marginBottom: 6 }}>{currentEmail.subject_line}</div>
+                        <div style={{ fontSize: 11, color: '#aaa', marginBottom: 2 }}>Preview text</div>
+                        <div style={{ fontSize: 13, color: '#555' }}>{currentEmail.preview_text}</div>
+                      </div>
+
+                      <div style={{ display: 'flex', borderBottom: '1px solid #f0f0f0', marginBottom: 14 }}>
+                        {['preview', 'html'].map(t => (
+                          <div key={t} onClick={() => setActiveTab(t)} style={{ fontSize: 12, padding: '7px 14px', cursor: 'pointer', color: activeTab === t ? '#111' : '#888', borderBottom: activeTab === t ? '2px solid #111' : '2px solid transparent', fontWeight: activeTab === t ? 700 : 400 }}>
+                            {t === 'html' ? 'HTML source' : 'Preview'}
+                          </div>
+                        ))}
+                      </div>
+
+                      {activeTab === 'preview' && (
+                        <div style={{ border: '1px solid #e5e5e5', borderRadius: 10, overflow: 'hidden' }}>
+                          <div style={{ padding: '10px 14px', borderBottom: '1px solid #f0f0f0', background: '#fafafa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 12, color: '#888' }}>Email {activeEmailIndex + 1} — {brand?.brandName}</span>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button style={{ ...s.btnSecondary, fontSize: 11, padding: '5px 10px' }} onClick={() => copyHtml(currentEmail.html)}>{copied ? 'Copied!' : 'Copy HTML'}</button>
+                              <button style={{ ...s.btnSecondary, fontSize: 11, padding: '5px 10px' }} onClick={() => downloadHtml(currentEmail.html, `${brand?.brandName}-email-${activeEmailIndex + 1}.html`)}>Download</button>
+                            </div>
+                          </div>
+                          <iframe srcDoc={currentEmail.html} style={{ width: '100%', height: 600, border: 'none', background: '#fff', display: 'block' }} sandbox="allow-same-origin" />
+                        </div>
+                      )}
+
+                      {activeTab === 'html' && (
+                        <div>
+                          <textarea readOnly value={currentEmail.html} style={{ ...s.textarea, height: 400, fontFamily: 'monospace', fontSize: 11, background: '#f9f9f9', color: '#444' }} />
+                          <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>
+                            <button style={s.btnSecondary} onClick={() => copyHtml(currentEmail.html)}>{copied ? 'Copied!' : 'Copy HTML'}</button>
+                            <button style={s.btnPrimary} onClick={() => downloadHtml(currentEmail.html, `${brand?.brandName}-email-${activeEmailIndex + 1}.html`)}>Download</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0', display: 'flex', gap: 8 }}>
+                    <button style={s.btnSecondary} onClick={() => setStep(3)}>← Back</button>
+                    <button style={s.btnSecondary} onClick={generate}>Regenerate</button>
+                    <button style={s.btnSecondary} onClick={reset}>New brand</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Single email result */}
+              {!generating && result && mode === 'single' && (
                 <div>
                   <div style={{ ...s.row2, marginBottom: 16 }}>
                     {[['Subject line', result.subject_line], ['Preview text', result.preview_text]].map(([lbl, val]) => (
@@ -342,8 +482,8 @@ export default function MailForge() {
                       <div style={{ padding: '10px 14px', borderBottom: '1px solid #f0f0f0', background: '#fafafa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: 12, color: '#888' }}>{emailType} — {brand?.brandName}</span>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <button style={{ ...s.btnSecondary, fontSize: 11, padding: '5px 10px' }} onClick={copyHtml}>{copied ? 'Copied!' : 'Copy HTML'}</button>
-                          <button style={{ ...s.btnSecondary, fontSize: 11, padding: '5px 10px' }} onClick={downloadHtml}>Download .html</button>
+                          <button style={{ ...s.btnSecondary, fontSize: 11, padding: '5px 10px' }} onClick={() => copyHtml(result.html)}>{copied ? 'Copied!' : 'Copy HTML'}</button>
+                          <button style={{ ...s.btnSecondary, fontSize: 11, padding: '5px 10px' }} onClick={() => downloadHtml(result.html, `${brand?.brandName}-${emailType}.html`)}>Download .html</button>
                           <button style={{ ...s.btnSecondary, fontSize: 11, padding: '5px 10px' }} onClick={reset}>Start over</button>
                         </div>
                       </div>
@@ -354,8 +494,8 @@ export default function MailForge() {
                     <div>
                       <textarea readOnly value={result.html} style={{ ...s.textarea, height: 400, fontFamily: 'monospace', fontSize: 11, background: '#f9f9f9', color: '#444' }} />
                       <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'flex-end' }}>
-                        <button style={s.btnSecondary} onClick={copyHtml}>{copied ? 'Copied!' : 'Copy HTML'}</button>
-                        <button style={s.btnPrimary} onClick={downloadHtml}>Download .html</button>
+                        <button style={s.btnSecondary} onClick={() => copyHtml(result.html)}>{copied ? 'Copied!' : 'Copy HTML'}</button>
+                        <button style={s.btnPrimary} onClick={() => downloadHtml(result.html, `${brand?.brandName}-${emailType}.html`)}>Download .html</button>
                       </div>
                     </div>
                   )}
