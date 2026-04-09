@@ -5,6 +5,9 @@ const FLOWS = [
   { type: 'welcome', icon: '👋', name: 'Welcome Flow', desc: '4 emails — discount delivery, education, founder story, urgency', emails: 4 },
   { type: 'post-purchase', icon: '📦', name: 'Post-Purchase Flow', desc: '4 emails — thank you, how to use, social proof, come back', emails: 4 },
   { type: 'abandoned-cart', icon: '🛒', name: 'Abandoned Cart Flow', desc: '3 emails — remind, build trust, push with urgency', emails: 3 },
+  { type: 'browse-abandon', icon: '👀', name: 'Browse Abandon Flow', desc: '3 emails — soft reminder, build desire, final push', emails: 3 },
+  { type: 'checkout-abandon', icon: '💳', name: 'Checkout Abandon Flow', desc: '3 emails — almost there, remove objections, last chance', emails: 3 },
+  { type: 'subscription-onboarding', icon: '🔄', name: 'Subscription Onboarding Flow', desc: '4 emails — welcome, build habit, set expectations, loyalty', emails: 4 },
 ]
 
 const SINGLE_TYPES = [
