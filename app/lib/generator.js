@@ -1,8 +1,6 @@
 /**
- * MailForge Email Generator v16
- * Fixed: testimonial attribution uses realistic customer name
- * Fixed: discount code always uppercase
- * Fixed: product grid only in welcome email 1, not all flow emails
+ * MailForge Email Generator v17
+ * Fixed: discount code only appears in emails where it belongs.
  */
 
 // ─── FLOW GENERATOR ──────────────────────────────────────────────────────────
@@ -55,6 +53,11 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   const isWelcome = emailType === 'Welcome email' || emailType === 'discount_delivery'
   const isAbandoned = emailType === 'Abandoned cart' || emailType === 'remind' || emailType === 'build_trust' || emailType === 'push'
   const isPostPurchase = emailType === 'Post-purchase' || emailType === 'thank_you' || emailType === 'how_to_use' || emailType === 'social_proof' || emailType === 'come_back'
+
+  // Emails where discount code should appear in CTA band
+  const isDiscountEmail = [
+    'push', 'urgency', 'Flash sale', 'Win-back', 'Product launch', 'Abandoned cart'
+  ].includes(emailType)
 
   let productImageUrl = null
   const cleanProductImage = productImages?.find(img => img.alt && img.alt.trim().length > 2)
@@ -111,7 +114,7 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
     primaryTextColor, accentTextColor, accentForLightBg,
     logoUrl, productImageUrl,
     topProducts, isWelcome, isAbandoned, isPostPurchase,
-    showProducts,
+    showProducts, isDiscountEmail,
     realQuote: brandData.bestTestimonialQuote || null
   })
 
@@ -132,7 +135,7 @@ async function generatePlainTextEmail(brandData, flowType, role, offer, anthropi
 - Short, personal, authentic — max 150 words
 - Tell a brief personal story about why they started the brand
 - Reference the welcome offer naturally if it exists: ${offer || 'none'}
-- End with a personal sign-off using a realistic founder first name (e.g. "Mike", "Sarah", "James")`,
+- End with a personal sign-off using a realistic founder first name`,
 
     'come_back': `This is a plain-text check-in email sent 7–14 days after purchase.
 - No design, no images, no buttons
@@ -235,18 +238,19 @@ Email 1 of the post-purchase flow. Send right after purchase.
 - Tone: celebratory, warm, reassuring
 - Hero headline: celebrate, max 6 words
 - Story: welcome them, tell brand story briefly, make them feel they made the right choice
-- CTA button: "TRACK MY ORDER"`,
+- CTA button: "TRACK MY ORDER"
+- No discount code anywhere in this email`,
 
     'how_to_use': `
 Email 2 of the post-purchase flow. Send 1–2 days later.
-- Goal: teach them how to use the product. NO selling.
+- Goal: teach them how to use the product. NO selling. NO discount.
 - Hero headline: about using the product, max 6 words
 - Story: 2-3 specific tips on how to use ${(brandData.productNames || [])[0] || brandData.productType}
 - CTA button: "VISIT OUR BLOG"`,
 
     'social_proof': `
 Email 3 of the post-purchase flow. Send 3–5 days later.
-- Show real reviews and suggest complementary products
+- Show real reviews and suggest complementary products. NO discount.
 - Hero headline: social proof focused, max 6 words
 - Story: reviews and community
 - product_label: "YOU MIGHT ALSO LOVE"
@@ -272,9 +276,9 @@ Email 2 of the abandoned cart flow. Send 24 hours later.
 
     'push': `
 Email 3 of the abandoned cart flow. Send 48–72 hours later.
-- Push with urgency. Discount optional.
+- Final push with urgency. Now reveal the discount if one exists.
 - Hero headline: urgency, max 6 words
-- Story: final push — urgency, scarcity, or discount reveal
+- Story: final push — urgency, scarcity, discount reveal
 - Offer: ${offer || 'none — use urgency instead'}
 - CTA button: "COMPLETE MY ORDER"
 - Urgency line: "This is your last reminder"`,
@@ -296,7 +300,7 @@ Abandoned cart email. Send 30 minutes after abandonment.
 
     'Post-purchase': `
 Post-purchase thank you email.
-- Tone: celebratory, warm
+- Tone: celebratory, warm. No discount.
 - Hero headline: celebrate purchase, max 6 words
 - Story: what happens next, care tips
 - CTA button: "TRACK MY ORDER"`,
@@ -349,7 +353,7 @@ GLOBAL RULES:
 - Write in the brand voice. Be specific to the niche and products.
 - Keep headlines punchy and short (max 8 words).
 - Keep paragraphs to 2-3 sentences max.
-- testimonial_name must be a realistic customer first name and last initial only (e.g. "James R.", "Maria K."). NEVER use the brand name.
+- testimonial_name must be a realistic customer first name and last initial only (e.g. "James R."). NEVER use the brand name.
 
 Return this exact JSON:
 {
@@ -393,7 +397,7 @@ Return this exact JSON:
 
 // ─── EMAIL ASSEMBLY ───────────────────────────────────────────────────────────
 
-function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primaryColor, accentColor, bgColor, primaryTextColor, accentTextColor, accentForLightBg, logoUrl, productImageUrl, topProducts, isWelcome, isAbandoned, isPostPurchase, showProducts, realQuote }) {
+function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primaryColor, accentColor, bgColor, primaryTextColor, accentTextColor, accentForLightBg, logoUrl, productImageUrl, topProducts, isWelcome, isAbandoned, isPostPurchase, showProducts, isDiscountEmail, realQuote }) {
 
   const df = `'${fontPairing.display}',Georgia,'Times New Roman',serif`
   const bf = `'${fontPairing.body}',Arial,Helvetica,sans-serif`
@@ -478,7 +482,6 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
       ? realQuote
       : `The ${(brandData.productNames || [])[0] || brandData.productType} completely changed my routine. The quality is unlike anything I've tried before.`
     const rawName = copy.testimonial_name || 'James R.'
-    // Safety check: never show brand name as testimonial attribution
     const brandLower = brandData.brandName.toLowerCase()
     const attribution = rawName.toLowerCase().includes(brandLower) ? 'James R.' : rawName
     return `
@@ -491,7 +494,7 @@ function assembleEmail({ brandData, emailType, offer, copy, fontPairing, primary
   }
 
   function ctaBandBlock() {
-    const hasDiscount = offer && !isWelcome
+    const hasDiscount = offer && isDiscountEmail
     const urgency = isWelcome && offer
       ? `Code <strong>${offerUpper}</strong> expires in 48 hours`
       : copy.urgency_line || ''
