@@ -1,7 +1,7 @@
 /**
- * MailForge Email Generator v12
- * Welcome email: no hero image — cleaner, more focused layout.
- * Other email types: hero image from scraped product images.
+ * MailForge Email Generator v13
+ * Improved copy prompts per email type based on playbook.
+ * Better hero image selection per email type.
  */
 
 export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages) {
@@ -18,10 +18,25 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   }
 
   const isWelcome = emailType === 'Welcome email'
+  const isAbandoned = emailType === 'Abandoned cart'
+  const isPostPurchase = emailType === 'Post-purchase'
+
+  // Hero image logic per email type
   if (!isWelcome) {
-    if (!heroImageUrl && hasScrapedImages) heroImageUrl = productImages[0]?.src
+    if (isAbandoned || isPostPurchase) {
+      // Use first clean product image (with alt text) for abandoned/post-purchase
+      const cleanProduct = productImages?.find(img => img.alt && img.alt.trim().length > 2)
+      if (cleanProduct) heroImageUrl = cleanProduct.src
+    } else {
+      // Other types: use first scraped image
+      if (!heroImageUrl && hasScrapedImages) heroImageUrl = productImages[0]?.src
+    }
   }
-  if (!productImageUrl && hasScrapedImages) productImageUrl = productImages[0]?.src
+
+  if (!productImageUrl && hasScrapedImages) {
+    const cleanProduct = productImages?.find(img => img.alt && img.alt.trim().length > 2)
+    productImageUrl = cleanProduct?.src || productImages[0]?.src
+  }
 
   const fontPairing = getFontPairing(brandData.brandTone)
   const logoUrl = brandData.logoUrl || null
@@ -65,9 +80,7 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   const topProducts = realProducts.slice(0, 3)
 
   const copy = await generateCopyWithClaude({
-    brandData, emailType, offer, fontPairing,
-    primaryColor, accentColor, primaryTextColor, accentTextColor,
-    topProducts, isWelcome, anthropic
+    brandData, emailType, offer, topProducts, isWelcome, anthropic
   })
 
   const html = assembleEmail({
@@ -86,9 +99,74 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   }
 }
 
-async function generateCopyWithClaude({ brandData, emailType, offer, fontPairing, primaryColor, accentColor, primaryTextColor, accentTextColor, topProducts, isWelcome, anthropic }) {
+async function generateCopyWithClaude({ brandData, emailType, offer, topProducts, isWelcome, anthropic }) {
 
   const systemPrompt = `You are an expert email copywriter for ecommerce brands. Output ONLY valid JSON. No markdown. Start with { and end with }.`
+
+  const emailTypeInstructions = {
+    'Welcome email': `
+This is email #1 in the welcome flow. Subscriber just signed up — they are warm and ready to buy.
+- Primary goal: deliver the discount code and make it easy to shop
+- Hero headline: warm welcome, max 6 words
+- Hero subline: one sentence about what the brand does
+- Story: brief brand intro using only real USPs, max 2 paragraphs
+- CTA button: "SHOP NOW & SAVE [X]%" if offer exists, else "SHOP NOW"
+- Do NOT mention the discount in the story section — it's already shown above`,
+
+    'Abandoned cart': `
+This is abandoned cart email #1, sent 30 minutes after abandonment.
+- Do NOT lead with a discount — create curiosity instead
+- Use mystery mechanic: hint that something special has been applied to their cart
+- Subject line should imply momentum, NOT guilt. Example: "Your order is almost ready" or "We saved your cart"
+- Hero headline: short, direct, implies their cart is waiting. Max 6 words.
+- Hero subline: one sentence reminding them what they left behind using product names: ${topProducts.map(p => p.name).join(', ')}
+- Story: 2 short paragraphs — emotional connection to the craft/product, then the mystery offer hint
+- CTA button: "COMPLETE MY ORDER"
+- Urgency line: "Your cart expires soon"
+- Do NOT reveal any discount amount — keep it mysterious`,
+
+    'Post-purchase': `
+This is a post-purchase thank you email sent right after a customer buys.
+- Tone: celebratory, warm, reassuring
+- Hero headline: celebrate their purchase, max 6 words. Example: "Your order is on its way"
+- Hero subline: one sentence about what to expect
+- Story: what happens next (shipping/processing), then invite them into the community
+- Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
+- CTA button: "TRACK MY ORDER"
+- Urgency line: share a tip or what to expect when product arrives`,
+
+    'Flash sale': `
+This is a flash sale / promotional email.
+- Tone: urgent, exciting
+- Hero headline: lead with the offer or urgency, max 6 words
+- Hero subline: what they save and why now
+- Story: why this sale is happening, what products are included
+- Offer: ${offer || 'limited time discount'}
+- CTA button: "SHOP THE SALE"
+- Urgency line: "Sale ends soon — don't miss out"`,
+
+    'Win-back': `
+This is a win-back email for inactive subscribers.
+- Tone: honest, warm, not pushy
+- Hero headline: acknowledge the time away, max 6 words. Example: "We've missed you"
+- Hero subline: one sentence about what's new or what they're missing
+- Story: honest reconnection — what's changed or improved, one compelling reason to return
+- Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
+- CTA button: "COME BACK & SAVE" if offer exists, else "SEE WHAT'S NEW"
+- Urgency line: make it feel like a limited opportunity`,
+
+    'Product launch': `
+This is a product launch announcement email.
+- Tone: excited, visionary
+- Hero headline: announce the new product, max 6 words
+- Hero subline: what problem it solves
+- Story: the vision behind the product, what makes it different, why it matters to the audience
+- Use real product names: ${(brandData.productNames || []).join(', ')}
+- CTA button: "SHOP THE NEW COLLECTION"
+- Urgency line: "Limited stock available"`,
+  }
+
+  const instructions = emailTypeInstructions[emailType] || ''
 
   const prompt = `Write copy for a ${emailType} email for ${brandData.brandName}.
 
@@ -105,12 +183,14 @@ BRAND:
 - Mission: ${brandData.missionStatement || ''}
 - Offer: ${offer || 'none'}
 
-RULES:
+EMAIL TYPE INSTRUCTIONS:
+${instructions}
+
+GLOBAL RULES:
 - Only use information provided above. Never invent facts, statistics, or details.
 - Write in the brand voice. Be specific to the niche and products.
 - Keep headlines punchy and short (max 8 words).
 - Keep paragraphs to 2-3 sentences max.
-${isWelcome ? `- Welcome email #1: primary goal is to deliver the discount code and make it easy to shop. Brand intro should be brief.` : ''}
 
 Return this exact JSON:
 {
