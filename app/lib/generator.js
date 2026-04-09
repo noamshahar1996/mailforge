@@ -1,6 +1,6 @@
 /**
- * MailForge Email Generator v18
- * Added: Browse Abandon, Checkout Abandon, Subscription Onboarding flows.
+ * MailForge Email Generator v19
+ * Added Klaviyo personalization variables.
  */
 
 // ─── FLOW GENERATOR ──────────────────────────────────────────────────────────
@@ -69,7 +69,6 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   const isWelcome = emailType === 'Welcome email' || emailType === 'discount_delivery'
   const isAbandoned = ['Abandoned cart', 'remind', 'build_trust', 'push', 'browse_remind', 'browse_desire', 'browse_push', 'checkout_remind', 'checkout_trust', 'checkout_push'].includes(emailType)
   const isPostPurchase = ['Post-purchase', 'thank_you', 'how_to_use', 'social_proof', 'come_back'].includes(emailType)
-
   const isDiscountEmail = ['push', 'urgency', 'browse_push', 'checkout_push', 'Flash sale', 'Win-back', 'Product launch', 'Abandoned cart'].includes(emailType)
 
   let productImageUrl = null
@@ -144,12 +143,14 @@ async function generatePlainTextEmail(brandData, flowType, role, offer, anthropi
   const roleInstructions = {
     'founder': `Plain-text founder email in the welcome flow. Personal Gmail style.
 - First person from the founder, max 150 words
+- Start with "Hi {{ first_name | default: 'there' }},"
 - Brief personal story about why they started the brand
 - Reference the welcome offer naturally: ${offer || 'none'}
 - End with a realistic founder first name sign-off`,
 
     'come_back': `Plain-text check-in email 7–14 days after purchase.
 - First person from customer success or founder, max 120 words
+- Start with "Hi {{ first_name | default: 'there' }},"
 - Ask how they're enjoying the product
 - Offer help if they have questions
 - Subtly mention complementary products: ${(brandData.productNames || []).join(', ')}
@@ -157,10 +158,10 @@ async function generatePlainTextEmail(brandData, flowType, role, offer, anthropi
 
     'sub_loyalty': `Plain-text loyalty email 7–10 days into a subscription.
 - First person from the founder or customer success, max 120 words
+- Start with "Hi {{ first_name | default: 'there' }},"
 - Thank them for being a subscriber
 - Share one surprising benefit of consistent use
 - Reinforce their decision to subscribe
-- Make them feel part of something exclusive
 - Personal sign-off`,
   }
 
@@ -223,51 +224,47 @@ async function generateCopyWithClaude({ brandData, emailType, offer, topProducts
   const systemPrompt = `You are an expert email copywriter for ecommerce brands. Output ONLY valid JSON. No markdown. Start with { and end with }.`
 
   const roleInstructions = {
-    // Welcome flow
     'discount_delivery': `Email 1 of welcome flow. Send immediately.
-- Deliver discount code prominently
-- Hero headline: warm welcome, max 6 words
+- Hero headline: personalized welcome with {{ first_name | default: 'there' }}, max 8 words. Example: "Welcome, {{ first_name | default: 'there' }} — here's your gift"
+- Hero subline: one sentence about the brand
 - Story: brief brand intro, only real USPs, max 2 paragraphs
 - CTA button: "SHOP NOW & SAVE" if offer exists, else "SHOP NOW"`,
 
     'education': `Email 2 of welcome flow. Send 1 day later.
 - Build trust, educate about the product. No discount mention.
-- Hero headline: product benefit hook, max 6 words
+- Hero headline: product benefit hook, max 6 words. No personalization needed.
 - Story: how it works, why it's different, use product names: ${(brandData.productNames || []).join(', ')}
 - CTA button: "SHOP NOW"`,
 
     'urgency': `Email 4 of welcome flow. Last chance. Send 3 days later.
-- Discount is expiring — create urgency
-- Hero headline: urgency about offer expiring, max 6 words
+- Hero headline: urgency about offer expiring, include {{ first_name | default: 'there' }}, max 8 words. Example: "{{ first_name | default: 'there' }}, your discount expires today"
 - Story: last reminder of key benefits
 - Offer: ${offer || 'welcome discount'}
 - CTA button: "CLAIM MY DISCOUNT"
 - Urgency line: "This offer expires today"`,
 
-    // Post-purchase flow
     'thank_you': `Email 1 of post-purchase flow. Send right after purchase.
 - Celebratory, warm, reassuring. No discount.
-- Hero headline: celebrate, max 6 words
+- Hero headline: celebrate with personalization, max 8 words. Example: "Your order is confirmed, {{ first_name | default: 'there' }}!"
 - Story: welcome them, make them feel they made the right choice
 - CTA button: "TRACK MY ORDER"`,
 
     'how_to_use': `Email 2 of post-purchase flow. Send 1–2 days later.
 - Teach them how to use the product. NO selling. NO discount.
-- Hero headline: about using the product, max 6 words
+- Hero headline: about using the product, max 6 words. No personalization needed.
 - Story: 2-3 specific tips for ${(brandData.productNames || [])[0] || brandData.productType}
 - CTA button: "VISIT OUR BLOG"`,
 
     'social_proof': `Email 3 of post-purchase flow. Send 3–5 days later.
 - Show reviews, suggest complementary products. No discount.
-- Hero headline: social proof focused, max 6 words
+- Hero headline: social proof focused, max 6 words. No personalization needed.
 - product_label: "YOU MIGHT ALSO LOVE"
 - product_headline: complementary products from: ${(brandData.productNames || []).join(', ')}
 - CTA button: "SHOP MORE"`,
 
-    // Abandoned cart flow
     'remind': `Email 1 of abandoned cart flow. Send 1 hour after abandonment.
 - Just remind them. No discount. One clear CTA.
-- Hero headline: cart is waiting, max 6 words
+- Hero headline: cart is waiting with personalization, max 8 words. Example: "{{ first_name | default: 'there' }}, your cart is waiting"
 - Hero subline: name these products: ${topProducts.map(p => p.name).join(', ')}
 - Story: 1 short paragraph — emotional connection to the product
 - CTA button: "COMPLETE MY ORDER"
@@ -275,49 +272,45 @@ async function generateCopyWithClaude({ brandData, emailType, offer, topProducts
 
     'build_trust': `Email 2 of abandoned cart flow. Send 24 hours later.
 - Remove doubt. Show reviews. Answer objections. NO discount.
-- Hero headline: trust-building, max 6 words
+- Hero headline: trust-building, max 6 words. No personalization needed.
 - Story: address objections, show social proof
 - Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
 - CTA button: "COMPLETE MY ORDER"`,
 
     'push': `Email 3 of abandoned cart flow. Send 48–72 hours later.
 - Final push. Reveal discount if one exists.
-- Hero headline: urgency, max 6 words
+- Hero headline: urgency with personalization, max 8 words. Example: "{{ first_name | default: 'there' }}, this is your last chance"
 - Story: final push with urgency or scarcity
 - Offer: ${offer || 'none — use urgency instead'}
 - CTA button: "COMPLETE MY ORDER"
 - Urgency line: "This is your last reminder"`,
 
-    // Browse abandon flow
     'browse_remind': `Email 1 of browse abandon flow. Send 1 hour after browsing.
-- They were looking but didn't add to cart — bring them back gently
-- No discount, no pressure
-- Hero headline: they were just browsing, max 6 words. Example: "Still thinking it over?"
+- Soft reminder. No discount, no pressure.
+- Hero headline: personalized, max 8 words. Example: "Still thinking it over, {{ first_name | default: 'there' }}?"
 - Hero subline: reference what they were browsing: ${(brandData.productNames || []).join(', ')}
 - Story: why these products are worth coming back for
 - CTA button: "CONTINUE BROWSING"
 - Urgency line: "Popular items sell out fast"`,
 
     'browse_desire': `Email 2 of browse abandon flow. Send 24 hours later.
-- Build desire and social proof around the browsed category. No discount.
-- Hero headline: desire-building, max 6 words
+- Build desire and social proof. No discount.
+- Hero headline: desire-building, max 6 words. No personalization needed.
 - Story: what other customers love about these products, real results
 - Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
 - CTA button: "SHOP NOW"`,
 
     'browse_push': `Email 3 of browse abandon flow. Send 48 hours later.
 - Final push with optional discount.
-- Hero headline: urgency or offer, max 6 words
+- Hero headline: urgency or offer, max 6 words. No personalization needed.
 - Story: final reason to buy, scarcity or discount reveal
 - Offer: ${offer || 'none — use scarcity instead'}
 - CTA button: "SHOP NOW"
 - Urgency line: "Don't miss out"`,
 
-    // Checkout abandon flow
     'checkout_remind': `Email 1 of checkout abandon flow. Send 30 min after abandonment.
-- They got to checkout — they are very close to buying
-- Super short, direct, one CTA
-- Hero headline: they almost finished, max 6 words. Example: "You're one click away"
+- They almost finished. Super direct.
+- Hero headline: personalized, max 8 words. Example: "{{ first_name | default: 'there' }}, you're one click away"
 - Hero subline: their order is saved and waiting
 - Story: 1 short paragraph — reassure them, their items are held
 - CTA button: "COMPLETE MY ORDER"
@@ -325,70 +318,67 @@ async function generateCopyWithClaude({ brandData, emailType, offer, topProducts
 
     'checkout_trust': `Email 2 of checkout abandon flow. Send 24 hours later.
 - Remove final purchase objections. No discount.
-- Hero headline: trust and security focused, max 6 words
+- Hero headline: trust and security focused, max 6 words. No personalization needed.
 - Story: address payment concerns, guarantees, return policy
 - Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
 - CTA button: "COMPLETE MY ORDER"`,
 
     'checkout_push': `Email 3 of checkout abandon flow. Send 48 hours later.
 - Last chance. Reveal discount now.
-- Hero headline: final urgency, max 6 words
+- Hero headline: final urgency with personalization, max 8 words. Example: "{{ first_name | default: 'there' }}, your cart expires today"
 - Story: last push — discount reveal, cart expiring
 - Offer: ${offer || 'none — use cart expiry urgency instead'}
 - CTA button: "COMPLETE MY ORDER"
 - Urgency line: "This is your final reminder"`,
 
-    // Subscription onboarding flow
-    'sub_welcome': `Email 1 of subscription onboarding. Send immediately after subscribing.
+    'sub_welcome': `Email 1 of subscription onboarding. Send immediately.
 - Welcome them to the subscription. Set expectations.
-- Hero headline: welcome to subscription, max 6 words
+- Hero headline: personalized welcome, max 8 words. Example: "Welcome to the family, {{ first_name | default: 'there' }}!"
 - Hero subline: what they can expect from their subscription
 - Story: what's coming in their first order, how to get the most out of it
 - CTA button: "MANAGE MY SUBSCRIPTION"`,
 
     'sub_habit': `Email 2 of subscription onboarding. Send 1–2 days later.
-- Teach them how to build a daily habit with the product.
-- Hero headline: about building the daily habit, max 6 words
+- Teach them how to build a daily habit.
+- Hero headline: about building the daily habit, max 6 words. No personalization needed.
 - Story: specific daily routine tips for ${(brandData.productNames || [])[0] || brandData.productType}
-- The easier the habit, the better the results
 - CTA button: "LEARN MORE TIPS"`,
 
     'sub_expectations': `Email 3 of subscription onboarding. Send 3–5 days later.
 - Set realistic results expectations to prevent churn.
-- Hero headline: about what they'll experience, max 6 words
-- Story: honest timeline of what to expect — short term and long term results
-- Do NOT overpromise. Frame results over weeks/months, not days.
+- Hero headline: about what they'll experience, max 6 words. No personalization needed.
+- Story: honest timeline of what to expect — short term and long term
+- Do NOT overpromise. Frame results over weeks/months.
 - CTA button: "TRACK YOUR PROGRESS"`,
 
-    // Single email types
     'Welcome email': `Welcome email #1. Deliver discount code.
-- Hero headline: warm welcome, max 6 words
+- Hero headline: personalized welcome, max 8 words. Example: "Welcome, {{ first_name | default: 'there' }} — here's your gift"
 - Story: brief brand intro, only real USPs
 - CTA button: "SHOP NOW & SAVE" if offer, else "SHOP NOW"`,
 
     'Abandoned cart': `Abandoned cart. No discount — mystery mechanic.
-- Hero headline: cart is waiting, max 6 words
+- Hero headline: personalized, max 8 words. Example: "{{ first_name | default: 'there' }}, your cart is waiting"
 - Hero subline: reference: ${topProducts.map(p => p.name).join(', ')}
 - Story: emotional connection + mystery offer hint
 - CTA button: "COMPLETE MY ORDER"`,
 
     'Post-purchase': `Post-purchase thank you. No discount.
-- Hero headline: celebrate purchase, max 6 words
+- Hero headline: personalized celebration, max 8 words. Example: "Your order is confirmed, {{ first_name | default: 'there' }}!"
 - Story: what happens next, care tips
 - CTA button: "TRACK MY ORDER"`,
 
-    'Flash sale': `Flash sale. Urgent and exciting.
+    'Flash sale': `Flash sale. Urgent and exciting. No personalization needed.
 - Hero headline: offer or urgency, max 6 words
 - Offer: ${offer || 'limited time discount'}
 - CTA button: "SHOP THE SALE"
 - Urgency line: "Sale ends soon"`,
 
     'Win-back': `Win-back for inactive subscribers.
-- Hero headline: acknowledge time away, max 6 words
+- Hero headline: personalized, max 8 words. Example: "We've missed you, {{ first_name | default: 'there' }}"
 - Story: what's changed, reason to return
 - CTA button: "COME BACK & SAVE" if offer, else "SEE WHAT'S NEW"`,
 
-    'Product launch': `Product launch announcement.
+    'Product launch': `Product launch announcement. No personalization needed.
 - Hero headline: announce new product, max 6 words
 - Story: vision, what makes it different
 - CTA button: "SHOP THE NEW COLLECTION"`,
@@ -420,6 +410,7 @@ GLOBAL RULES:
 - Keep headlines punchy and short (max 8 words).
 - Keep paragraphs to 2-3 sentences max.
 - testimonial_name: realistic customer first name and last initial only (e.g. "James R."). NEVER use the brand name.
+- Klaviyo variable {{ first_name | default: 'there' }} — use ONLY where the instructions above say to. Write it exactly as shown including the spaces and pipe character.
 
 Return this exact JSON:
 {
