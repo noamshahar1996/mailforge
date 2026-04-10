@@ -24,72 +24,170 @@ async function fetchPage(url) {
 }
 
 // ─── FONT DETECTION ───────────────────────────────────────────────────────────
-// Extracts font names the brand actually uses on their website.
-// Checks Google Fonts links, @font-face declarations, and body/heading CSS.
-// Returns up to 3 font names — the first is usually the display/heading font,
-// the second is usually the body font.
 function detectFonts(html) {
   const $ = cheerio.load(html)
   const fonts = new Set()
 
-  // 1. Google Fonts <link> tags — most reliable source
-  // e.g. fonts.googleapis.com/css2?family=Playfair+Display:wght@400,700
   $('link[href*="fonts.googleapis.com"]').each((_, el) => {
     const href = $(el).attr('href') || ''
     const familyMatches = href.match(/family=([^&:?|]+)/g) || []
     familyMatches.forEach(match => {
-      const name = match
-        .replace('family=', '')
-        .split(':')[0]
-        .split('|')[0]
-        .replace(/\+/g, ' ')
-        .trim()
+      const name = match.replace('family=', '').split(':')[0].split('|')[0].replace(/\+/g, ' ').trim()
       if (name && name.length > 1) fonts.add(name)
     })
   })
 
-  // 2. @import url() Google Fonts inside <style> tags
   $('style').each((_, el) => {
     const css = $(el).html() || ''
     const importMatches = css.match(/fonts\.googleapis\.com\/css[^"')]+/g) || []
     importMatches.forEach(importUrl => {
       const familyMatches = importUrl.match(/family=([^&:?|"')]+)/g) || []
       familyMatches.forEach(match => {
-        const name = match
-          .replace('family=', '')
-          .split(':')[0]
-          .split('|')[0]
-          .replace(/\+/g, ' ')
-          .trim()
+        const name = match.replace('family=', '').split(':')[0].split('|')[0].replace(/\+/g, ' ').trim()
         if (name && name.length > 1) fonts.add(name)
       })
     })
   })
 
-  // 3. @font-face src declarations in <style> tags
   $('style').each((_, el) => {
     const css = $(el).html() || ''
     const fontFaceMatches = css.match(/font-family\s*:\s*['"]?([^;'"]+)['"]?\s*;/gi) || []
     fontFaceMatches.forEach(match => {
-      const name = match
-        .replace(/font-family\s*:\s*/i, '')
-        .replace(/[;'"]/g, '')
-        .trim()
+      const name = match.replace(/font-family\s*:\s*/i, '').replace(/[;'"]/g, '').trim()
       if (name && name.length > 1 && !name.includes('inherit') && !name.includes('sans-serif') && !name.includes('serif') && !name.includes('monospace')) {
         fonts.add(name)
       }
     })
   })
 
-  // 4. Inline style font-family on body or headings as a last resort
-  const bodyFont = $('body').attr('style') || ''
-  const bodyFontMatch = bodyFont.match(/font-family\s*:\s*([^;]+)/)
-  if (bodyFontMatch) {
-    const name = bodyFontMatch[1].split(',')[0].replace(/['"]/g, '').trim()
-    if (name && name.length > 1) fonts.add(name)
+  return [...fonts].slice(0, 4)
+}
+
+// ─── TRUST SIGNAL EXTRACTION ──────────────────────────────────────────────────
+// Scans page text for real trust signals — shipping, returns, reviews, guarantees.
+// Only extracts what actually exists on the page. Never invents data.
+function extractTrustSignals(html) {
+  const $ = cheerio.load(html)
+  const pageText = $('body').text().replace(/\s+/g, ' ').toLowerCase()
+  const signals = {}
+
+  // FREE SHIPPING — looks for "free shipping on orders over $X" or "free shipping over $X"
+  const shippingPatterns = [
+    /free shipping on orders over \$?([\d,]+)/i,
+    /free shipping over \$?([\d,]+)/i,
+    /free shipping on \$?([\d,]+)\+/i,
+    /free shipping for orders over \$?([\d,]+)/i,
+    /orders over \$?([\d,]+) ship free/i,
+    /complimentary shipping on orders over \$?([\d,]+)/i,
+  ]
+  for (const pattern of shippingPatterns) {
+    const match = pageText.match(pattern)
+    if (match) {
+      signals.freeShipping = `Free Shipping $${match[1].replace(',', '')}+`
+      break
+    }
+  }
+  // Also check for unconditional free shipping
+  if (!signals.freeShipping) {
+    if (/free shipping on all orders|always free shipping|free standard shipping/.test(pageText)) {
+      signals.freeShipping = 'Free Shipping'
+    }
   }
 
-  return [...fonts].slice(0, 4)
+  // RETURNS — looks for "X-day returns", "X-day money back", "lifetime guarantee"
+  const returnPatterns = [
+    /(\d+)[\s-]day\s+(return|money.?back|refund|guarantee)/i,
+    /(lifetime|satisfaction)\s+guarantee/i,
+    /hassle.?free returns/i,
+    /free returns/i,
+  ]
+  for (const pattern of returnPatterns) {
+    const match = pageText.match(pattern)
+    if (match) {
+      if (match[1] && /^\d+$/.test(match[1])) {
+        signals.returns = `${match[1]}-Day Returns`
+      } else if (/lifetime/i.test(match[0])) {
+        signals.returns = 'Lifetime Guarantee'
+      } else if (/satisfaction/i.test(match[0])) {
+        signals.returns = 'Satisfaction Guarantee'
+      } else {
+        signals.returns = 'Free Returns'
+      }
+      break
+    }
+  }
+
+  // REVIEW COUNT — looks for "X reviews", "X+ reviews", "X customers"
+  const reviewPatterns = [
+    /([\d,]+)\+?\s+(?:5-star\s+)?(?:reviews|ratings)/i,
+    /([\d,]+)\+?\s+happy customers/i,
+    /([\d,]+)\+?\s+customers/i,
+    /rated by ([\d,]+)/i,
+    /over ([\d,]+) reviews/i,
+  ]
+  for (const pattern of reviewPatterns) {
+    const match = pageText.match(pattern)
+    if (match) {
+      const count = match[1].replace(',', '')
+      const num = parseInt(count)
+      if (num > 10) {
+        // Format nicely: 12400 → "12,400+" or "12K+"
+        if (num >= 1000) {
+          const formatted = num >= 10000
+            ? `${Math.floor(num / 1000)}K+`
+            : `${num.toLocaleString()}+`
+          signals.reviews = `${formatted} Reviews`
+        } else {
+          signals.reviews = `${num}+ Reviews`
+        }
+        break
+      }
+    }
+  }
+
+  // STAR RATING — looks for "4.8 stars", "4.9 out of 5"
+  const ratingPatterns = [
+    /(\d\.\d)\s*(?:out of\s*5\s*)?stars?/i,
+    /rated\s+(\d\.\d)\s*\/\s*5/i,
+    /(\d\.\d)\s*average rating/i,
+  ]
+  for (const pattern of ratingPatterns) {
+    const match = pageText.match(pattern)
+    if (match) {
+      const rating = parseFloat(match[1])
+      if (rating >= 4.0 && rating <= 5.0) {
+        signals.rating = `${rating} / 5 Stars`
+        break
+      }
+    }
+  }
+
+  // SUSTAINABILITY / CLEAN / NATURAL — qualitative trust signals
+  const cleanPatterns = [
+    /cruelty.?free/i,
+    /certified organic/i,
+    /clinically tested/i,
+    /dermatologist.?tested/i,
+    /made in (?:the )?usa/i,
+    /sustainably sourced/i,
+    /non.?toxic/i,
+    /clean formula/i,
+    /vegan formula/i,
+    /fda.?registered/i,
+  ]
+  for (const pattern of cleanPatterns) {
+    const match = pageText.match(pattern)
+    if (match) {
+      // Clean up the match text
+      let label = match[0].trim()
+      label = label.charAt(0).toUpperCase() + label.slice(1).toLowerCase()
+      label = label.replace(/-/g, ' ').replace(/\s+/g, ' ')
+      signals.quality = label
+      break
+    }
+  }
+
+  return signals
 }
 
 function parsePage(html, baseUrl) {
@@ -178,7 +276,6 @@ function mergePageData(pages) {
   }
 }
 
-// ─── HERO IMAGE SELECTION ─────────────────────────────────────────────────────
 function selectHeroImage(meta, images) {
   if (meta.ogImage && meta.ogImage.startsWith('http')) return meta.ogImage
   if (meta.twitterImage && meta.twitterImage.startsWith('http')) return meta.twitterImage
@@ -193,7 +290,6 @@ function selectHeroImage(meta, images) {
   return candidate ? candidate.src : ''
 }
 
-// ─── PRODUCT IMAGE SELECTION ──────────────────────────────────────────────────
 function selectProductImages(images) {
   const skipKeywords = ['logo', 'icon', 'favicon', 'badge', 'star', 'arrow', 'sprite', 'pixel', 'track', 'banner', 'hero', 'bg', 'background']
   return images
@@ -230,6 +326,7 @@ export async function scrapeWebsite(url) {
   let ctas = []
   let navItems = []
   let detectedFonts = []
+  let trustSignals = {}
 
   if (homepageHtml) {
     const $ = cheerio.load(homepageHtml)
@@ -252,8 +349,23 @@ export async function scrapeWebsite(url) {
       .filter(t => t.length > 1 && t.length < 40)
       .slice(0, 12)
 
-    // Detect fonts from the homepage — most reliable page for font declarations
     detectedFonts = detectFonts(homepageHtml)
+
+    // Extract trust signals from homepage first, then check other pages
+    trustSignals = extractTrustSignals(homepageHtml)
+  }
+
+  // If homepage didn't have all signals, check other pages too
+  for (let i = 1; i < htmlResults.length; i++) {
+    if (htmlResults[i].status === 'fulfilled' && htmlResults[i].value) {
+      const pageTrust = extractTrustSignals(htmlResults[i].value)
+      // Merge — only add if not already found
+      if (!trustSignals.freeShipping && pageTrust.freeShipping) trustSignals.freeShipping = pageTrust.freeShipping
+      if (!trustSignals.returns && pageTrust.returns) trustSignals.returns = pageTrust.returns
+      if (!trustSignals.reviews && pageTrust.reviews) trustSignals.reviews = pageTrust.reviews
+      if (!trustSignals.rating && pageTrust.rating) trustSignals.rating = pageTrust.rating
+      if (!trustSignals.quality && pageTrust.quality) trustSignals.quality = pageTrust.quality
+    }
   }
 
   const merged = mergePageData(parsedPages)
@@ -272,6 +384,7 @@ export async function scrapeWebsite(url) {
     productNames: merged.productNames,
     testimonials: merged.testimonials,
     detectedFonts,
+    trustSignals,
   }
 }
 
@@ -304,7 +417,10 @@ Customer testimonials found: ${JSON.stringify(scrapedData.testimonials)}
 Image alt texts: ${JSON.stringify(scrapedData.images.slice(0, 15).map(i => i.alt).filter(Boolean))}
 
 FONTS DETECTED ON WEBSITE: ${JSON.stringify(scrapedData.detectedFonts)}
-These are the actual fonts the brand uses on their website. Use these for displayFont and bodyFont if they are available on Google Fonts. If the detected fonts are not recognizable or empty, choose appropriate Google Fonts that match the brand tone.
+Use these for displayFont and bodyFont if they are Google Fonts. Otherwise choose appropriate Google Fonts matching the brand tone.
+
+TRUST SIGNALS DETECTED ON WEBSITE: ${JSON.stringify(scrapedData.trustSignals)}
+These are extracted directly from the website text. Only include in trustSignals what was actually found.
 
 Return a JSON object with this exact structure:
 {
@@ -322,13 +438,22 @@ Return a JSON object with this exact structure:
   "avgOrderValue": "string",
   "hasSubscription": boolean,
   "productNames": ["up to 5 specific product names"],
-  "testimonialHints": "string — best social proof signal found",
+  "testimonialHints": "string",
   "bestTestimonialQuote": "string — exact quote if found, else empty string",
   "missionStatement": "string",
   "confidence": "high | medium | low",
-  "displayFont": "string — exact Google Fonts name to use for headlines, e.g. 'Playfair Display'. Use detected website font if available, otherwise choose one that fits the brand.",
-  "bodyFont": "string — exact Google Fonts name to use for body text, e.g. 'Lato'. Use detected website font if available, otherwise choose one that fits the brand."
+  "displayFont": "string — exact Google Fonts name for headlines",
+  "bodyFont": "string — exact Google Fonts name for body text",
+  "trustSignals": {
+    "freeShipping": "string or null — only if found on site, e.g. 'Free Shipping $75+'",
+    "returns": "string or null — only if found on site, e.g. '30-Day Returns'",
+    "reviews": "string or null — only if found on site, e.g. '12,400+ Reviews'",
+    "rating": "string or null — only if found on site, e.g. '4.9 / 5 Stars'",
+    "quality": "string or null — only if found on site, e.g. 'Cruelty-Free'"
+  }
 }
+
+CRITICAL: The trustSignals values must be based ONLY on what was detected on the website. If a signal was not detected, set it to null. Never invent or assume trust signals.
 
 Return ONLY the JSON object. No markdown, no explanation.`
 
@@ -348,7 +473,10 @@ Return ONLY the JSON object. No markdown, no explanation.`
     else throw new Error('Failed to parse brand analysis')
   }
 
-  // Attach image data to brandData
+  // Ensure trustSignals exists and clean out any nulls for easy checking
+  if (!brandData.trustSignals) brandData.trustSignals = {}
+
+  // Attach image data
   brandData.heroImageUrl = selectHeroImage(scrapedData.meta, scrapedData.images)
   brandData.scrapedImages = selectProductImages(scrapedData.images)
 
