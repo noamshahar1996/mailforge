@@ -32,7 +32,7 @@ export function getLayoutVariant() {
       pullQuote: subRoll1,
       dividers: true,
       productCardBg: '#f0ede8',
-      useImageHero: true,
+      useImageHero: false,
       showStatement: false,
     },
     B: {
@@ -45,7 +45,7 @@ export function getLayoutVariant() {
       pullQuote: false,
       dividers: false,
       productCardBg: '#ffffff',
-      useImageHero: true,
+      useImageHero: false,
       showStatement: true,
     },
     C: {
@@ -58,7 +58,7 @@ export function getLayoutVariant() {
       pullQuote: subRoll1,
       dividers: false,
       productCardBg: '#f5f3ef',
-      useImageHero: true,
+      useImageHero: false,
       showStatement: true,
     },
   }
