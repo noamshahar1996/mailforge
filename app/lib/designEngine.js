@@ -814,9 +814,12 @@ export function assembleEmail({
   const trustBadges = trustBadgeBlock({ trustSignals, accentColor, accentTextColor, bf })
 
   // SPLIT SECTION — uses first scraped product image if available
-  const splitProductImg = (brandData.scrapedImages && brandData.scrapedImages[0])
-    ? brandData.scrapedImages[0].src
-    : null
+  const pressKeywords = ['homes', 'gardens', 'forbes', 'vogue', 'times', 'magazine', 'press', 'media', 'award', 'featured', 'as seen', 'huffpost', 'buzzfeed', 'wsj', 'nyt', 'entrepreneur', 'inc.']
+const splitProductImg = (brandData.scrapedImages || []).find(img => {
+  const src = img.src.toLowerCase()
+  const alt = (img.alt || '').toLowerCase()
+  return !pressKeywords.some(k => src.includes(k) || alt.includes(k))
+})?.src || null
   const split = lv.splitSection
     ? splitBlock({ copy, productImage: splitProductImg, bgColor, accentForLightBg, accentColor, accentTextColor, df, bf, ds })
     : ''
