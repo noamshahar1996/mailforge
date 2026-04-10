@@ -116,6 +116,45 @@ function mergePageData(pages) {
   }
 }
 
+// ─── HERO IMAGE SELECTION ─────────────────────────────────────────────────────
+// Picks the best available image to use as the email hero.
+// Priority: OG image → Twitter image → first large scraped image → empty string
+function selectHeroImage(meta, images) {
+  // OG and Twitter images are specifically chosen by the brand for social previews
+  // so they are almost always high-quality lifestyle or product hero shots
+  if (meta.ogImage && meta.ogImage.startsWith('http')) return meta.ogImage
+  if (meta.twitterImage && meta.twitterImage.startsWith('http')) return meta.twitterImage
+
+  // Fall back to first scraped image that looks like a real photo (not an icon or logo)
+  // Filter out tiny images and common UI assets
+  const skipKeywords = ['logo', 'icon', 'favicon', 'badge', 'star', 'arrow', 'sprite', 'pixel', 'track']
+  const candidate = images.find(img => {
+    const srcLower = img.src.toLowerCase()
+    const altLower = (img.alt || '').toLowerCase()
+    const isSkipped = skipKeywords.some(k => srcLower.includes(k) || altLower.includes(k))
+    const hasImageExtension = /\.(jpg|jpeg|png|webp)/i.test(srcLower)
+    return !isSkipped && hasImageExtension
+  })
+
+  return candidate ? candidate.src : ''
+}
+
+// ─── PRODUCT IMAGE SELECTION ──────────────────────────────────────────────────
+// Returns up to 6 product images from the scraped image pool.
+// These are used in the product grid section of the email.
+function selectProductImages(images) {
+  const skipKeywords = ['logo', 'icon', 'favicon', 'badge', 'star', 'arrow', 'sprite', 'pixel', 'track', 'banner', 'hero', 'bg', 'background']
+  return images
+    .filter(img => {
+      const srcLower = img.src.toLowerCase()
+      const altLower = (img.alt || '').toLowerCase()
+      const isSkipped = skipKeywords.some(k => srcLower.includes(k) || altLower.includes(k))
+      const hasImageExtension = /\.(jpg|jpeg|png|webp)/i.test(srcLower)
+      return !isSkipped && hasImageExtension
+    })
+    .slice(0, 6)
+}
+
 export async function scrapeWebsite(url) {
   const baseUrl = url.startsWith('http') ? url : `https://${url}`
   const origin = new URL(baseUrl).origin
@@ -238,11 +277,20 @@ Return ONLY the JSON object. No markdown, no explanation.`
   })
 
   const raw = response.content[0].text
+  let brandData
   try {
-    return JSON.parse(raw.replace(/```json|```/g, '').trim())
+    brandData = JSON.parse(raw.replace(/```json|```/g, '').trim())
   } catch {
     const m = raw.match(/\{[\s\S]*\}/)
-    if (m) return JSON.parse(m[0])
-    throw new Error('Failed to parse brand analysis')
+    if (m) brandData = JSON.parse(m[0])
+    else throw new Error('Failed to parse brand analysis')
   }
+
+  // ── Attach image data to brandData ────────────────────────────────────────
+  // These are selected here so the design engine can use them directly
+  // without needing access to the raw scraped data.
+  brandData.heroImageUrl = selectHeroImage(scrapedData.meta, scrapedData.images)
+  brandData.scrapedImages = selectProductImages(scrapedData.images)
+
+  return brandData
 }
