@@ -23,6 +23,75 @@ async function fetchPage(url) {
   }
 }
 
+// ─── FONT DETECTION ───────────────────────────────────────────────────────────
+// Extracts font names the brand actually uses on their website.
+// Checks Google Fonts links, @font-face declarations, and body/heading CSS.
+// Returns up to 3 font names — the first is usually the display/heading font,
+// the second is usually the body font.
+function detectFonts(html) {
+  const $ = cheerio.load(html)
+  const fonts = new Set()
+
+  // 1. Google Fonts <link> tags — most reliable source
+  // e.g. fonts.googleapis.com/css2?family=Playfair+Display:wght@400,700
+  $('link[href*="fonts.googleapis.com"]').each((_, el) => {
+    const href = $(el).attr('href') || ''
+    const familyMatches = href.match(/family=([^&:?|]+)/g) || []
+    familyMatches.forEach(match => {
+      const name = match
+        .replace('family=', '')
+        .split(':')[0]
+        .split('|')[0]
+        .replace(/\+/g, ' ')
+        .trim()
+      if (name && name.length > 1) fonts.add(name)
+    })
+  })
+
+  // 2. @import url() Google Fonts inside <style> tags
+  $('style').each((_, el) => {
+    const css = $(el).html() || ''
+    const importMatches = css.match(/fonts\.googleapis\.com\/css[^"')]+/g) || []
+    importMatches.forEach(importUrl => {
+      const familyMatches = importUrl.match(/family=([^&:?|"')]+)/g) || []
+      familyMatches.forEach(match => {
+        const name = match
+          .replace('family=', '')
+          .split(':')[0]
+          .split('|')[0]
+          .replace(/\+/g, ' ')
+          .trim()
+        if (name && name.length > 1) fonts.add(name)
+      })
+    })
+  })
+
+  // 3. @font-face src declarations in <style> tags
+  $('style').each((_, el) => {
+    const css = $(el).html() || ''
+    const fontFaceMatches = css.match(/font-family\s*:\s*['"]?([^;'"]+)['"]?\s*;/gi) || []
+    fontFaceMatches.forEach(match => {
+      const name = match
+        .replace(/font-family\s*:\s*/i, '')
+        .replace(/[;'"]/g, '')
+        .trim()
+      if (name && name.length > 1 && !name.includes('inherit') && !name.includes('sans-serif') && !name.includes('serif') && !name.includes('monospace')) {
+        fonts.add(name)
+      }
+    })
+  })
+
+  // 4. Inline style font-family on body or headings as a last resort
+  const bodyFont = $('body').attr('style') || ''
+  const bodyFontMatch = bodyFont.match(/font-family\s*:\s*([^;]+)/)
+  if (bodyFontMatch) {
+    const name = bodyFontMatch[1].split(',')[0].replace(/['"]/g, '').trim()
+    if (name && name.length > 1) fonts.add(name)
+  }
+
+  return [...fonts].slice(0, 4)
+}
+
 function parsePage(html, baseUrl) {
   const $ = cheerio.load(html)
 
@@ -82,15 +151,8 @@ function unique(arr) {
 
 function mergePageData(pages) {
   const merged = {
-    h1s: [],
-    h2s: [],
-    h3s: [],
-    paragraphs: [],
-    images: [],
-    colors: [],
-    prices: [],
-    productNames: [],
-    testimonials: [],
+    h1s: [], h2s: [], h3s: [], paragraphs: [],
+    images: [], colors: [], prices: [], productNames: [], testimonials: [],
   }
   for (const p of pages) {
     merged.h1s.push(...p.h1s)
@@ -117,16 +179,9 @@ function mergePageData(pages) {
 }
 
 // ─── HERO IMAGE SELECTION ─────────────────────────────────────────────────────
-// Picks the best available image to use as the email hero.
-// Priority: OG image → Twitter image → first large scraped image → empty string
 function selectHeroImage(meta, images) {
-  // OG and Twitter images are specifically chosen by the brand for social previews
-  // so they are almost always high-quality lifestyle or product hero shots
   if (meta.ogImage && meta.ogImage.startsWith('http')) return meta.ogImage
   if (meta.twitterImage && meta.twitterImage.startsWith('http')) return meta.twitterImage
-
-  // Fall back to first scraped image that looks like a real photo (not an icon or logo)
-  // Filter out tiny images and common UI assets
   const skipKeywords = ['logo', 'icon', 'favicon', 'badge', 'star', 'arrow', 'sprite', 'pixel', 'track']
   const candidate = images.find(img => {
     const srcLower = img.src.toLowerCase()
@@ -135,13 +190,10 @@ function selectHeroImage(meta, images) {
     const hasImageExtension = /\.(jpg|jpeg|png|webp)/i.test(srcLower)
     return !isSkipped && hasImageExtension
   })
-
   return candidate ? candidate.src : ''
 }
 
 // ─── PRODUCT IMAGE SELECTION ──────────────────────────────────────────────────
-// Returns up to 6 product images from the scraped image pool.
-// These are used in the product grid section of the email.
 function selectProductImages(images) {
   const skipKeywords = ['logo', 'icon', 'favicon', 'badge', 'star', 'arrow', 'sprite', 'pixel', 'track', 'banner', 'hero', 'bg', 'background']
   return images
@@ -177,6 +229,7 @@ export async function scrapeWebsite(url) {
   let meta = { title: '', metaDesc: '', ogTitle: '', ogDesc: '', ogImage: '', twitterImage: '' }
   let ctas = []
   let navItems = []
+  let detectedFonts = []
 
   if (homepageHtml) {
     const $ = cheerio.load(homepageHtml)
@@ -198,6 +251,9 @@ export async function scrapeWebsite(url) {
       .get()
       .filter(t => t.length > 1 && t.length < 40)
       .slice(0, 12)
+
+    // Detect fonts from the homepage — most reliable page for font declarations
+    detectedFonts = detectFonts(homepageHtml)
   }
 
   const merged = mergePageData(parsedPages)
@@ -215,6 +271,7 @@ export async function scrapeWebsite(url) {
     prices: merged.prices,
     productNames: merged.productNames,
     testimonials: merged.testimonials,
+    detectedFonts,
   }
 }
 
@@ -246,6 +303,9 @@ Product names found: ${JSON.stringify(scrapedData.productNames)}
 Customer testimonials found: ${JSON.stringify(scrapedData.testimonials)}
 Image alt texts: ${JSON.stringify(scrapedData.images.slice(0, 15).map(i => i.alt).filter(Boolean))}
 
+FONTS DETECTED ON WEBSITE: ${JSON.stringify(scrapedData.detectedFonts)}
+These are the actual fonts the brand uses on their website. Use these for displayFont and bodyFont if they are available on Google Fonts. If the detected fonts are not recognizable or empty, choose appropriate Google Fonts that match the brand tone.
+
 Return a JSON object with this exact structure:
 {
   "brandName": "string",
@@ -265,7 +325,9 @@ Return a JSON object with this exact structure:
   "testimonialHints": "string — best social proof signal found",
   "bestTestimonialQuote": "string — exact quote if found, else empty string",
   "missionStatement": "string",
-  "confidence": "high | medium | low"
+  "confidence": "high | medium | low",
+  "displayFont": "string — exact Google Fonts name to use for headlines, e.g. 'Playfair Display'. Use detected website font if available, otherwise choose one that fits the brand.",
+  "bodyFont": "string — exact Google Fonts name to use for body text, e.g. 'Lato'. Use detected website font if available, otherwise choose one that fits the brand."
 }
 
 Return ONLY the JSON object. No markdown, no explanation.`
@@ -286,9 +348,7 @@ Return ONLY the JSON object. No markdown, no explanation.`
     else throw new Error('Failed to parse brand analysis')
   }
 
-  // ── Attach image data to brandData ────────────────────────────────────────
-  // These are selected here so the design engine can use them directly
-  // without needing access to the raw scraped data.
+  // Attach image data to brandData
   brandData.heroImageUrl = selectHeroImage(scrapedData.meta, scrapedData.images)
   brandData.scrapedImages = selectProductImages(scrapedData.images)
 
