@@ -1,13 +1,16 @@
 /**
- * MailForge Design Engine v2
+ * MailForge Design Engine v2.1
  * Premium block-based email design system.
  * Includes 3 layout variants that rotate randomly on each generation.
  * All blocks consume shared design tokens and brand data.
+ *
+ * New in v2.1:
+ * - heroBlock_image: full-bleed photo hero with gradient overlay + headline on top
+ * - statementBlock: large centered italic sentence between hero and story
+ * - Tighter product card image containers for a cleaner grid
  */
 
 // ─── LAYOUT VARIANT SYSTEM ────────────────────────────────────────────────────
-// Called once per generation. Returns a random layout config.
-// This is what makes each email look different from the last.
 export function getLayoutVariant() {
   const roll = Math.random()
   let variant
@@ -19,9 +22,6 @@ export function getLayoutVariant() {
   const subRoll2 = Math.random() > 0.5
 
   const configs = {
-    // VARIANT A — "Dark Anchor"
-    // Minimal light header, story before products, dark testimonial block,
-    // accent-colored CTA band. Clean and editorial.
     A: {
       name: 'Dark Anchor',
       headerStyle: 'minimal',
@@ -32,10 +32,9 @@ export function getLayoutVariant() {
       pullQuote: subRoll1,
       dividers: true,
       productCardBg: '#f0ede8',
+      useImageHero: true,
+      showStatement: false,
     },
-    // VARIANT B — "Bold Flow"
-    // Brand-color header, hero leads strong, products front and center,
-    // testimonial after products, primary-color CTA band.
     B: {
       name: 'Bold Flow',
       headerStyle: 'logo',
@@ -46,10 +45,9 @@ export function getLayoutVariant() {
       pullQuote: false,
       dividers: false,
       productCardBg: '#ffffff',
+      useImageHero: true,
+      showStatement: true,
     },
-    // VARIANT C — "Contrast Editorial"
-    // Brand-color header, story comes after products (reverses usual order),
-    // testimonial sits between story and CTA, dark CTA band for maximum impact.
     C: {
       name: 'Contrast Editorial',
       headerStyle: 'logo',
@@ -60,13 +58,15 @@ export function getLayoutVariant() {
       pullQuote: subRoll1,
       dividers: false,
       productCardBg: '#f5f3ef',
+      useImageHero: true,
+      showStatement: true,
     },
   }
 
   return { variant, config: configs[variant] }
 }
 
-// ─── DESIGN SYSTEM (global tokens) ───────────────────────────────────────────
+// ─── DESIGN SYSTEM ────────────────────────────────────────────────────────────
 export function getDesignSystem(brandTone) {
   const base = {
     spacing: { xs: 8, sm: 16, md: 24, lg: 40, xl: 64 },
@@ -217,10 +217,7 @@ export function headerBlock_minimal({ brandName, logoUrl, accentColor, df }) {
   const content = logoUrl
     ? `<img src="${logoUrl}" height="44" style="display:block;height:44px;width:auto;margin:0 auto;border:0;" alt="${brandName}">`
     : `<span style="font-family:${df};font-size:12px;font-weight:400;letter-spacing:7px;text-transform:uppercase;color:#1a1a1a;">${brandName.toUpperCase()}</span>`
-  return `
-<tr><td bgcolor="#fafaf8" style="padding:28px 60px 24px;text-align:center;border-bottom:1px solid #e8e4de;">
-  ${content}
-</td></tr>`
+  return `<tr><td bgcolor="#fafaf8" style="padding:28px 60px 24px;text-align:center;border-bottom:1px solid #e8e4de;">${content}</td></tr>`
 }
 
 // ── DISCOUNT BLOCKS ───────────────────────────────────────────────────────────
@@ -254,6 +251,56 @@ export function discountBlock_bold({ offer, primaryColor, primaryTextColor, acce
 }
 
 // ── HERO BLOCKS ───────────────────────────────────────────────────────────────
+
+// NEW v2.1 — Full-bleed image hero with headline and CTA overlaid on a dark gradient.
+// Uses VML background images for Outlook compatibility.
+// Falls back to heroBlock_editorial if no image is available.
+export function heroBlock_image({ copy, heroImageUrl, primaryColor, primaryTextColor, accentColor, accentTextColor, df, bf, ds }) {
+  if (!heroImageUrl) {
+    return heroBlock_editorial({ copy, primaryColor, primaryTextColor, accentColor, accentTextColor, df, bf, ds })
+  }
+  const bpv = ds.button.paddingV
+  const bph = ds.button.paddingH
+  const br = ds.buttonRadius
+  const h1 = ds.typography.h1
+  const overlayBg = '#080604'
+  return `
+<tr>
+  <td style="padding:0;margin:0;font-size:0;line-height:0;" bgcolor="${overlayBg}">
+    <!--[if gte mso 9]>
+    <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;height:480px;">
+      <v:fill type="frame" src="${heroImageUrl}" color="${overlayBg}"/>
+      <v:textbox inset="0,0,0,0">
+    <![endif]-->
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"
+      style="width:600px;min-height:480px;background-image:url('${heroImageUrl}');background-size:cover;background-position:center center;background-color:${overlayBg};">
+      <tr>
+        <td style="padding:0;vertical-align:bottom;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600">
+            <tr>
+              <td height="200" style="font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+            <tr>
+              <td bgcolor="${overlayBg}" style="opacity:0.72;height:280px;font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 48px 56px;text-align:left;vertical-align:top;">
+          <p style="margin:0 0 14px;font-family:${bf};font-size:10px;font-weight:500;letter-spacing:3.5px;text-transform:uppercase;color:rgba(255,255,255,0.55);">${copy.hero_eyebrow || ''}</p>
+          <h1 style="margin:0 0 28px;font-family:${df};font-size:${h1}px;font-weight:300;line-height:1.1;letter-spacing:-0.5px;color:#ffffff;max-width:420px;">${copy.hero_headline || ''}</h1>
+          <a href="#" style="display:inline-block;background:transparent;border:1px solid rgba(255,255,255,0.65);color:#ffffff;font-family:${bf};font-size:10px;font-weight:500;letter-spacing:3px;text-transform:uppercase;text-decoration:none;padding:${bpv}px ${bph}px;border-radius:${br};">${copy.cta_button || 'DISCOVER'}</a>
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 9]>
+      </v:textbox>
+    </v:rect>
+    <![endif]-->
+  </td>
+</tr>`
+}
 
 export function heroBlock_editorial({ copy, primaryColor, primaryTextColor, accentColor, accentTextColor, df, bf, ds }) {
   const bpv = ds.button.paddingV
@@ -297,23 +344,33 @@ export function heroBlock_warm({ copy, primaryColor, primaryTextColor, accentCol
 </td></tr>`
 }
 
+// ── STATEMENT BLOCK ───────────────────────────────────────────────────────────
+// NEW v2.1 — A single large italic sentence on a clean background.
+// Creates a visual pause and "editorial moment" between the hero and story.
+// Pulls the first sentence of story_p2 as the statement text.
+export function statementBlock({ copy, accentColor, df, ds }) {
+  const raw = copy.story_p2 || copy.hero_subline || ''
+  const sentence = raw.split('.')[0].trim()
+  if (!sentence || sentence.length < 20) return ''
+  return `
+<tr><td bgcolor="#fafaf8" style="padding:${ds.spacing.xl}px 72px;text-align:center;border-top:1px solid #e8e4de;border-bottom:1px solid #e8e4de;">
+  <p style="margin:0 0 18px;font-size:13px;color:${accentColor};letter-spacing:4px;">★ ★ ★ ★ ★</p>
+  <p style="margin:0;font-family:${df};font-size:26px;font-weight:300;font-style:italic;line-height:1.55;color:#1a1a1a;">${sentence}.</p>
+</td></tr>`
+}
+
 // ── STORY / CONTENT BLOCKS ────────────────────────────────────────────────────
 
 export function storyBlock_editorial({ copy, bgColor, accentForLightBg, df, bf, ds, pullQuote = false }) {
   const h2 = ds.typography.h2
   const bodySize = ds.typography.body
   const labelSize = ds.typography.label
-  // Optional pull-quote — a large italic sentence lifted from story_p2
   const pullQuoteHtml = pullQuote && copy.story_p2
-    ? `<tr><td style="padding:${ds.spacing.lg}px ${ds.spacing.xl}px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-          <tr>
-            <td style="border-left:3px solid ${accentForLightBg};padding-left:${ds.spacing.md}px;">
-              <p style="margin:0;font-family:${df};font-size:20px;font-weight:300;font-style:italic;line-height:1.6;color:#3a3028;">${copy.story_p2.split('.')[0]}.</p>
-            </td>
-          </tr>
-        </table>
-      </td></tr>`
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:${ds.spacing.md}px 0;">
+        <tr><td style="border-left:3px solid ${accentForLightBg};padding-left:${ds.spacing.md}px;">
+          <p style="margin:0;font-family:${df};font-size:20px;font-weight:300;font-style:italic;line-height:1.6;color:#3a3028;">${copy.story_p2.split('.')[0]}.</p>
+        </td></tr>
+      </table>`
     : ''
   return `
 <tr><td bgcolor="${bgColor}" style="padding:${ds.spacing.xl}px ${ds.spacing.xl}px;">
@@ -321,10 +378,10 @@ export function storyBlock_editorial({ copy, bgColor, accentForLightBg, df, bf, 
   <h2 style="margin:0 0 ${ds.spacing.md}px;font-family:${df};font-size:${h2}px;font-weight:300;line-height:1.25;color:#1a1a1a;letter-spacing:0.5px;">${copy.story_headline || ''}</h2>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="40" style="margin-bottom:${ds.spacing.md}px;"><tr><td style="height:1px;background:${accentForLightBg};font-size:0;line-height:0;">&nbsp;</td></tr></table>
   <p style="margin:0 0 ${ds.spacing.sm}px;font-family:${bf};font-size:${bodySize}px;font-weight:300;line-height:1.95;color:#5a504a;">${copy.story_p1 || ''}</p>
+  ${pullQuoteHtml}
   <p style="margin:0 0 ${copy.story_p3 ? ds.spacing.sm + 'px' : '0'};font-family:${bf};font-size:${bodySize}px;font-weight:300;line-height:1.95;color:#5a504a;">${copy.story_p2 || ''}</p>
   ${copy.story_p3 ? `<p style="margin:0;font-family:${bf};font-size:${bodySize}px;font-weight:300;line-height:1.95;color:#5a504a;">${copy.story_p3}</p>` : ''}
-</td></tr>
-${pullQuoteHtml}`
+</td></tr>`
 }
 
 export function storyBlock_standard({ copy, bgColor, accentForLightBg, df, bf, ds, pullQuote = false }) {
@@ -333,11 +390,9 @@ export function storyBlock_standard({ copy, bgColor, accentForLightBg, df, bf, d
   const labelSize = ds.typography.label
   const pullQuoteHtml = pullQuote && copy.story_p2
     ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:${ds.spacing.md}px 0;">
-        <tr>
-          <td style="border-left:3px solid ${accentForLightBg};padding-left:${ds.spacing.md}px;">
-            <p style="margin:0;font-family:${df};font-size:19px;font-weight:400;font-style:italic;line-height:1.6;color:#333333;">${copy.story_p2.split('.')[0]}.</p>
-          </td>
-        </tr>
+        <tr><td style="border-left:3px solid ${accentForLightBg};padding-left:${ds.spacing.md}px;">
+          <p style="margin:0;font-family:${df};font-size:19px;font-weight:400;font-style:italic;line-height:1.6;color:#333333;">${copy.story_p2.split('.')[0]}.</p>
+        </td></tr>
       </table>`
     : ''
   return `
@@ -360,11 +415,9 @@ export function productBlock_grid3({ products, copy, bgColor, accentForLightBg, 
   const cells = products.map(p => `
     <td width="${colWidth}" style="padding:${ds.spacing.xs}px;text-align:center;vertical-align:top;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="${imgContainerWidth}">
-        <tr>
-          <td bgcolor="${productCardBg}" style="padding:16px;text-align:center;">
-            <img src="${p.src}" width="${imgContainerWidth - 32}" style="display:block;margin:0 auto;max-width:100%;border:0;" alt="${p.name}">
-          </td>
-        </tr>
+        <tr><td bgcolor="${productCardBg}" style="padding:8px;text-align:center;">
+          <img src="${p.src}" width="${imgContainerWidth - 16}" style="display:block;margin:0 auto;max-width:100%;border:0;" alt="${p.name}">
+        </td></tr>
       </table>
       <p style="margin:${ds.spacing.sm}px 0 4px;font-family:${bf};font-size:13px;font-weight:500;color:#111111;letter-spacing:0.3px;">${p.name}</p>
       <a href="#" style="font-family:${bf};font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:${accentForLightBg};text-decoration:none;">${ctaLabel}</a>
@@ -386,11 +439,9 @@ export function productBlock_featured({ products, copy, bgColor, accentForLightB
     <tr>
       <td width="260" style="vertical-align:middle;padding-right:${ds.spacing.md}px;">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="244">
-          <tr>
-            <td bgcolor="${productCardBg}" style="padding:20px;text-align:center;">
-              <img src="${p.src}" width="204" style="display:block;margin:0 auto;max-width:100%;border:0;" alt="${p.name}">
-            </td>
-          </tr>
+          <tr><td bgcolor="${productCardBg}" style="padding:12px;text-align:center;">
+            <img src="${p.src}" width="220" style="display:block;margin:0 auto;max-width:100%;border:0;" alt="${p.name}">
+          </td></tr>
         </table>
       </td>
       <td style="vertical-align:middle;">
@@ -459,12 +510,8 @@ export function testimonialBlock_dark({ quote, attribution, primaryColor, accent
 export function ctaBlock_outline({ copy, offer, isWelcome, isDiscountEmail, accentColor, accentTextColor, primaryColor, df, bf, ds }) {
   const offerUpper = offer ? offer.toUpperCase() : ''
   const hasDiscount = offer && isDiscountEmail
-  const urgency = isWelcome && offer
-    ? `Code ${offerUpper} expires in 48 hours`
-    : copy.urgency_line || ''
-  const bpv = ds.button.paddingV
-  const bph = ds.button.paddingH
-  const br = ds.buttonRadius
+  const urgency = isWelcome && offer ? `Code ${offerUpper} expires in 48 hours` : copy.urgency_line || ''
+  const bpv = ds.button.paddingV, bph = ds.button.paddingH, br = ds.buttonRadius
   return `
 <tr><td bgcolor="${accentColor}" style="padding:${ds.spacing.xl}px ${ds.spacing.lg}px;text-align:center;">
   <h2 style="margin:0 0 ${ds.spacing.md}px;font-family:${df};font-size:${ds.typography.h2}px;font-weight:300;line-height:1.25;letter-spacing:0.5px;color:${accentTextColor};">${copy.cta_headline || ''}</h2>
@@ -477,12 +524,8 @@ export function ctaBlock_outline({ copy, offer, isWelcome, isDiscountEmail, acce
 export function ctaBlock_filled({ copy, offer, isWelcome, isDiscountEmail, accentColor, accentTextColor, primaryColor, df, bf, ds }) {
   const offerUpper = offer ? offer.toUpperCase() : ''
   const hasDiscount = offer && isDiscountEmail
-  const urgency = isWelcome && offer
-    ? `Code ${offerUpper} expires in 48 hours`
-    : copy.urgency_line || ''
-  const bpv = ds.button.paddingV
-  const bph = ds.button.paddingH
-  const br = ds.buttonRadius
+  const urgency = isWelcome && offer ? `Code ${offerUpper} expires in 48 hours` : copy.urgency_line || ''
+  const bpv = ds.button.paddingV, bph = ds.button.paddingH, br = ds.buttonRadius
   return `
 <tr><td bgcolor="${accentColor}" style="padding:${ds.spacing.xl}px ${ds.spacing.lg}px;text-align:center;">
   <h2 style="margin:0 0 ${ds.spacing.md}px;font-family:${df};font-size:${ds.typography.h2}px;font-weight:700;line-height:1.2;color:${accentTextColor};">${copy.cta_headline || ''}</h2>
@@ -494,12 +537,8 @@ export function ctaBlock_filled({ copy, offer, isWelcome, isDiscountEmail, accen
 
 export function ctaBlock_minimal({ copy, offer, isWelcome, isDiscountEmail, accentColor, accentTextColor, primaryColor, df, bf, ds }) {
   const offerUpper = offer ? offer.toUpperCase() : ''
-  const urgency = isWelcome && offer
-    ? `Code ${offerUpper} expires in 48 hours`
-    : copy.urgency_line || ''
-  const bpv = ds.button.paddingV
-  const bph = ds.button.paddingH
-  const br = ds.buttonRadius
+  const urgency = isWelcome && offer ? `Code ${offerUpper} expires in 48 hours` : copy.urgency_line || ''
+  const bpv = ds.button.paddingV, bph = ds.button.paddingH, br = ds.buttonRadius
   return `
 <tr><td bgcolor="#faf9f7" style="padding:${ds.spacing.xl}px ${ds.spacing.lg}px;text-align:center;border-top:1px solid #e8e4de;">
   <h2 style="margin:0 0 ${ds.spacing.md}px;font-family:${df};font-size:${ds.typography.h2}px;font-weight:300;line-height:1.25;color:#1a1a1a;">${copy.cta_headline || ''}</h2>
@@ -508,16 +547,11 @@ export function ctaBlock_minimal({ copy, offer, isWelcome, isDiscountEmail, acce
 </td></tr>`
 }
 
-// CTA band with dark background (used by Variant C)
 export function ctaBlock_dark({ copy, offer, isWelcome, isDiscountEmail, accentColor, accentTextColor, primaryColor, df, bf, ds }) {
   const offerUpper = offer ? offer.toUpperCase() : ''
   const hasDiscount = offer && isDiscountEmail
-  const urgency = isWelcome && offer
-    ? `Code ${offerUpper} expires in 48 hours`
-    : copy.urgency_line || ''
-  const bpv = ds.button.paddingV
-  const bph = ds.button.paddingH
-  const br = ds.buttonRadius
+  const urgency = isWelcome && offer ? `Code ${offerUpper} expires in 48 hours` : copy.urgency_line || ''
+  const bpv = ds.button.paddingV, bph = ds.button.paddingH, br = ds.buttonRadius
   return `
 <tr><td bgcolor="#111111" style="padding:${ds.spacing.xl}px ${ds.spacing.lg}px;text-align:center;">
   <h2 style="margin:0 0 ${ds.spacing.md}px;font-family:${df};font-size:${ds.typography.h2}px;font-weight:300;line-height:1.25;letter-spacing:0.5px;color:#ffffff;">${copy.cta_headline || ''}</h2>
@@ -558,7 +592,6 @@ export function footerBlock({ brandName, logoUrl, tagline, df, bf }) {
 }
 
 // ─── BLOCK SELECTOR ───────────────────────────────────────────────────────────
-// Picks block variation based on email role. Layout variant overrides apply on top.
 export function selectBlocks(emailRole, brandTone, hasOffer) {
   const selections = {
     discount_delivery: { hero: 'editorial', discount: 'luxury', story: 'editorial', products: 'grid3', testimonial: 'editorial', cta: 'outline' },
@@ -612,7 +645,6 @@ export function assembleEmail({
   isDiscountEmail,
   realQuote,
 }) {
-  // ── Colors ──
   const primaryColor = brandData.primaryColor || '#111111'
   const accentColor = brandData.accentColor || '#c9b99a'
   const bgColor = brandData.backgroundColor || '#ffffff'
@@ -622,21 +654,16 @@ export function assembleEmail({
   const logoUrl = brandData.logoUrl || null
   const brandTone = brandData.brandTone || 'Warm & friendly'
 
-  // ── Fonts ──
+  // heroImageUrl is attached by scraper.js after brand analysis
+  const heroImageUrl = brandData.heroImageUrl || ''
+
   const font = getFontPairing(brandTone)
   const df = `'${font.display}',Georgia,'Times New Roman',serif`
   const bf = `'${font.body}',Arial,Helvetica,sans-serif`
-
-  // ── Design tokens ──
   const ds = getDesignSystem(brandTone)
-
-  // ── Block selection (role + tone based) ──
   const blockSelection = selectBlocks(emailType, brandTone, !!offer)
-
-  // ── Layout variant (random structural variation) ──
   const { variant, config: lv } = getLayoutVariant()
 
-  // ── Testimonial ──
   const quote = realQuote && realQuote.length > 10
     ? realQuote
     : `The ${(brandData.productNames || [])[0] || brandData.productType} completely changed my routine. Unlike anything I've tried before.`
@@ -644,152 +671,85 @@ export function assembleEmail({
   const brandLower = brandData.brandName.toLowerCase()
   const attribution = rawName.toLowerCase().includes(brandLower) ? 'James R.' : rawName
 
-  // ── Section background colors ──
-  // Variant A alternates sections for rhythm; B and C keep it simpler
   const storyBg = lv.storyBgLight ? '#f5f3ef' : bgColor
-
-  // ── Build each section ──
-
-  // HEADER
   const isLuxury = brandTone === 'Luxury & refined' || brandTone === 'Minimalist'
   const useMinimalHeader = isLuxury || lv.headerStyle === 'minimal'
+
+  // ── Build blocks ──
+
   const header = useMinimalHeader
     ? headerBlock_minimal({ brandName: brandData.brandName, logoUrl, accentColor, df })
     : headerBlock_logo({ brandName: brandData.brandName, logoUrl, primaryColor, primaryTextColor, df })
 
-  // DISCOUNT (welcome emails only)
   const discount = isWelcome && offer
     ? (isLuxury
         ? discountBlock_luxury({ offer, primaryColor, primaryTextColor, df, bf })
         : discountBlock_bold({ offer, primaryColor, primaryTextColor, accentColor, accentTextColor, df, bf }))
     : ''
 
-  // HERO
-  const heroProps = { copy, primaryColor, primaryTextColor, accentColor, accentTextColor, df, bf, ds }
-  const hero = blockSelection.hero === 'impact'
-    ? heroBlock_impact(heroProps)
-    : blockSelection.hero === 'warm'
-    ? heroBlock_warm(heroProps)
-    : heroBlock_editorial(heroProps)
+  // Use image hero whenever a heroImageUrl is available — this is the biggest visual upgrade
+  const heroProps = { copy, heroImageUrl, primaryColor, primaryTextColor, accentColor, accentTextColor, df, bf, ds }
+  let hero
+  if (heroImageUrl && lv.useImageHero) {
+    hero = heroBlock_image(heroProps)
+  } else if (blockSelection.hero === 'impact') {
+    hero = heroBlock_impact(heroProps)
+  } else if (blockSelection.hero === 'warm') {
+    hero = heroBlock_warm(heroProps)
+  } else {
+    hero = heroBlock_editorial(heroProps)
+  }
 
-  // STORY
+  // Statement block appears on Variants B and C between hero and main content
+  const statement = lv.showStatement ? statementBlock({ copy, accentColor, df, ds }) : ''
+
   const storyProps = { copy, bgColor: storyBg, accentForLightBg, df, bf, ds, pullQuote: lv.pullQuote }
   const story = blockSelection.story === 'editorial'
     ? storyBlock_editorial(storyProps)
     : storyBlock_standard(storyProps)
 
-  // PRODUCTS
   let products = ''
   if (showProducts && topProducts && topProducts.length > 0) {
-    const productProps = {
-      products: topProducts, copy, bgColor, accentForLightBg,
-      accentColor, accentTextColor, df, bf, ds,
-      productCardBg: lv.productCardBg,
-    }
-    const productStyle = blockSelection.products || lv.productStyle
-    if (productStyle === 'featured') {
-      products = productBlock_featured(productProps)
-    } else if (productStyle === 'minimal' || isPostPurchase) {
-      products = productBlock_minimal({ ...productProps, ctaLabel: 'LEARN MORE' })
-    } else {
-      products = productBlock_grid3(productProps)
-    }
+    const productProps = { products: topProducts, copy, bgColor, accentForLightBg, accentColor, accentTextColor, df, bf, ds, productCardBg: lv.productCardBg }
+    const productStyle = blockSelection.products || 'grid3'
+    if (productStyle === 'featured') products = productBlock_featured(productProps)
+    else if (productStyle === 'minimal' || isPostPurchase) products = productBlock_minimal({ ...productProps, ctaLabel: 'LEARN MORE' })
+    else products = productBlock_grid3(productProps)
   }
 
-  // TESTIMONIAL
   const testimonialProps = { quote, attribution, accentColor, primaryColor, primaryTextColor, df, bf, ds }
   const testimonial = blockSelection.testimonial === 'dark'
     ? testimonialBlock_dark(testimonialProps)
     : testimonialBlock_editorial(testimonialProps)
 
-  // CTA BAND
-  // The layout variant can override the CTA background color
   const ctaProps = { copy, offer, isWelcome, isDiscountEmail, accentColor, accentTextColor, primaryColor, df, bf, ds }
   let cta
-  if (lv.ctaBgStyle === 'dark') {
-    cta = ctaBlock_dark(ctaProps)
-  } else if (blockSelection.cta === 'minimal') {
-    cta = ctaBlock_minimal(ctaProps)
-  } else if (blockSelection.cta === 'outline') {
-    cta = ctaBlock_outline(ctaProps)
-  } else {
-    cta = ctaBlock_filled(ctaProps)
-  }
+  if (lv.ctaBgStyle === 'dark') cta = ctaBlock_dark(ctaProps)
+  else if (blockSelection.cta === 'minimal') cta = ctaBlock_minimal(ctaProps)
+  else if (blockSelection.cta === 'outline') cta = ctaBlock_outline(ctaProps)
+  else cta = ctaBlock_filled(ctaProps)
 
-  // DIVIDERS (luxury tone or Variant A)
   const useDividers = isLuxury || lv.dividers
   const dividerAccent = useDividers ? dividerBlock_accent({ accentColor, bgColor: primaryColor }) : ''
   const dividerMid = useDividers ? dividerBlock_subtle({ bgColor }) : ''
-
-  // FOOTER
   const footer = footerBlock({ brandName: brandData.brandName, logoUrl, tagline: brandData.tagline, df, bf })
 
-  // ── SECTION ORDER ─────────────────────────────────────────────────────────
-  // The layout variant controls whether story comes before or after products,
-  // and whether the testimonial sits before or after the CTA.
-  // This gives structural variety beyond just visual style.
-
+  // ── Assemble in order ──
   let sections = header
 
+  const contentBlocks = () => {
+    let c = statement
+    if (lv.storyBeforeProducts) { c += story; c += products }
+    else { c += products; c += story }
+    if (lv.testimonialBeforeCta) { c += testimonial; c += cta }
+    else { c += cta; c += testimonial }
+    return c
+  }
+
   if (isWelcome) {
-    sections += dividerAccent
-    sections += discount
-    sections += hero
-    sections += dividerMid
-
-    if (lv.storyBeforeProducts) {
-      sections += story
-      sections += products
-    } else {
-      sections += products
-      sections += story
-    }
-
-    if (lv.testimonialBeforeCta) {
-      sections += testimonial
-      sections += cta
-    } else {
-      sections += cta
-      sections += testimonial
-    }
-
-  } else if (isPostPurchase) {
-    sections += hero
-
-    if (lv.storyBeforeProducts) {
-      sections += story
-      sections += products
-    } else {
-      sections += products
-      sections += story
-    }
-
-    if (lv.testimonialBeforeCta) {
-      sections += testimonial
-      sections += cta
-    } else {
-      sections += cta
-      sections += testimonial
-    }
-
+    sections += dividerAccent + discount + hero + dividerMid + contentBlocks()
   } else {
-    sections += hero
-
-    if (lv.storyBeforeProducts) {
-      sections += story
-      sections += products
-    } else {
-      sections += products
-      sections += story
-    }
-
-    if (lv.testimonialBeforeCta) {
-      sections += testimonial
-      sections += cta
-    } else {
-      sections += cta
-      sections += testimonial
-    }
+    sections += hero + contentBlocks()
   }
 
   sections += footer
