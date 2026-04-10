@@ -4,6 +4,27 @@ import { scrapeWebsite, analyzeBrandWithAI } from '../../lib/scraper'
 
 export const maxDuration = 30
 
+// Retries a function up to `retries` times when Anthropic returns a 529 overloaded error.
+// Waits longer between each attempt (2s, 4s, 6s).
+// Any other error fails immediately without retrying.
+async function withRetry(fn, retries = 3, delayMs = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn()
+    } catch (err) {
+      const isOverloaded =
+        err?.status === 529 ||
+        err?.message?.includes('overloaded') ||
+        err?.message?.includes('529')
+      if (isOverloaded && i < retries - 1) {
+        await new Promise(res => setTimeout(res, delayMs * (i + 1)))
+        continue
+      }
+      throw err
+    }
+  }
+}
+
 export async function POST(request) {
   try {
     const { url } = await request.json()
@@ -20,18 +41,16 @@ export async function POST(request) {
 
     let brandData
     try {
-      brandData = await analyzeBrandWithAI(scraped, anthropic)
+      brandData = await withRetry(() => analyzeBrandWithAI(scraped, anthropic))
     } catch (err) {
       return NextResponse.json({ error: `Brand analysis failed: ${err.message}` }, { status: 500 })
     }
 
     // Logo: only use if explicitly identified as a logo
     let logoUrl = null
-
     if (scraped.meta.ogImage && scraped.meta.ogImage.toLowerCase().includes('logo')) {
       logoUrl = scraped.meta.ogImage
     }
-
     if (!logoUrl) {
       const logoImg = scraped.images.find(img => {
         const src = img.src.toLowerCase()
@@ -66,7 +85,6 @@ export async function POST(request) {
       pagesScraped: scraped.pagesScraped,
       testimonials: scraped.testimonials,
     })
-
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
