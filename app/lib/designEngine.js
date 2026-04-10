@@ -213,11 +213,11 @@ export function headerBlock_logo({ brandName, logoUrl, primaryColor, primaryText
   return `<tr><td bgcolor="${primaryColor}" style="padding:32px 60px 28px;text-align:center;">${content}</td></tr>`
 }
 
-export function headerBlock_minimal({ brandName, logoUrl, accentColor, df }) {
+export function headerBlock_minimal({ brandName, logoUrl, primaryColor, primaryTextColor, accentColor, df }) {
   const content = logoUrl
     ? `<img src="${logoUrl}" height="44" style="display:block;height:44px;width:auto;margin:0 auto;border:0;" alt="${brandName}">`
-    : `<span style="font-family:${df};font-size:12px;font-weight:400;letter-spacing:7px;text-transform:uppercase;color:#1a1a1a;">${brandName.toUpperCase()}</span>`
-  return `<tr><td bgcolor="#fafaf8" style="padding:28px 60px 24px;text-align:center;border-bottom:1px solid #e8e4de;">${content}</td></tr>`
+    : `<span style="font-family:${df};font-size:12px;font-weight:400;letter-spacing:7px;text-transform:uppercase;color:${primaryTextColor};">${brandName.toUpperCase()}</span>`
+  return `<tr><td bgcolor="${primaryColor}" style="padding:28px 60px 24px;text-align:center;">${content}</td></tr>`
 }
 
 // ── DISCOUNT BLOCKS ───────────────────────────────────────────────────────────
@@ -653,7 +653,7 @@ export function assembleEmail({
   // ── Build blocks ──
 
   const header = useMinimalHeader
-    ? headerBlock_minimal({ brandName: brandData.brandName, logoUrl, accentColor, df })
+    ? headerBlock_minimal({ brandName: brandData.brandName, logoUrl, primaryColor, primaryTextColor, accentColor, df })
     : headerBlock_logo({ brandName: brandData.brandName, logoUrl, primaryColor, primaryTextColor, df })
 
   const discount = isWelcome && offer
