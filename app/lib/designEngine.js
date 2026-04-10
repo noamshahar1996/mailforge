@@ -263,41 +263,16 @@ export function heroBlock_image({ copy, heroImageUrl, primaryColor, primaryTextC
   const bph = ds.button.paddingH
   const br = ds.buttonRadius
   const h1 = ds.typography.h1
-  const overlayBg = '#080604'
   return `
 <tr>
-  <td style="padding:0;margin:0;font-size:0;line-height:0;" bgcolor="${overlayBg}">
-    <!--[if gte mso 9]>
-    <v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:600px;height:480px;">
-      <v:fill type="frame" src="${heroImageUrl}" color="${overlayBg}"/>
-      <v:textbox inset="0,0,0,0">
-    <![endif]-->
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"
-      style="width:600px;min-height:480px;background-image:url('${heroImageUrl}');background-size:cover;background-position:center center;background-color:${overlayBg};">
-      <tr>
-        <td style="padding:0;vertical-align:bottom;">
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600">
-            <tr>
-              <td height="200" style="font-size:0;line-height:0;">&nbsp;</td>
-            </tr>
-            <tr>
-              <td bgcolor="${overlayBg}" style="opacity:0.72;height:280px;font-size:0;line-height:0;">&nbsp;</td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:0 48px 56px;text-align:left;vertical-align:top;">
-          <p style="margin:0 0 14px;font-family:${bf};font-size:10px;font-weight:500;letter-spacing:3.5px;text-transform:uppercase;color:rgba(255,255,255,0.55);">${copy.hero_eyebrow || ''}</p>
-          <h1 style="margin:0 0 28px;font-family:${df};font-size:${h1}px;font-weight:300;line-height:1.1;letter-spacing:-0.5px;color:#ffffff;max-width:420px;">${copy.hero_headline || ''}</h1>
-          <a href="#" style="display:inline-block;background:transparent;border:1px solid rgba(255,255,255,0.65);color:#ffffff;font-family:${bf};font-size:10px;font-weight:500;letter-spacing:3px;text-transform:uppercase;text-decoration:none;padding:${bpv}px ${bph}px;border-radius:${br};">${copy.cta_button || 'DISCOVER'}</a>
-        </td>
-      </tr>
-    </table>
-    <!--[if gte mso 9]>
-      </v:textbox>
-    </v:rect>
-    <![endif]-->
+  <td style="padding:0;font-size:0;line-height:0;">
+    <img src="${heroImageUrl}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" alt="${copy.hero_headline || ''}">
+  </td>
+</tr>
+<tr>
+  <td bgcolor="${primaryColor}" style="padding:40px 48px 48px;text-align:left;">
+    <h1 style="margin:0 0 20px;font-family:${df};font-size:${h1}px;font-weight:300;line-height:1.1;letter-spacing:-0.5px;color:${primaryTextColor};max-width:420px;">${copy.hero_headline || ''}</h1>
+    <a href="#" style="display:inline-block;background:transparent;border:1px solid ${primaryTextColor};color:${primaryTextColor};font-family:${bf};font-size:10px;font-weight:500;letter-spacing:3px;text-transform:uppercase;text-decoration:none;padding:${bpv}px ${bph}px;border-radius:${br};">${copy.cta_button || 'DISCOVER'}</a>
   </td>
 </tr>`
 }
