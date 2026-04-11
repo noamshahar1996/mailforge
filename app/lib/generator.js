@@ -68,7 +68,7 @@ export async function generateFlow(brandData, flowType, offer, productImages, an
 
 // ─── SINGLE EMAIL GENERATOR ───────────────────────────────────────────────────
 
-export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages, flowType = null, showProducts = true) {
+export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages, flowType = null, showProducts = true, overrideCopy = null) {
 
   const isWelcome      = emailType === 'Welcome email' || emailType === 'discount_delivery'
   const isAbandoned    = ['Abandoned cart', 'remind', 'build_trust', 'push', 'browse_remind', 'browse_desire', 'browse_push', 'checkout_remind', 'checkout_trust', 'checkout_push'].includes(emailType)
@@ -85,8 +85,8 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
   }
   const topProducts = realProducts.slice(0, 3)
 
-  // Generate copy — same for both block system and named templates
-  const copy = await generateCopyWithClaude({
+  // Generate copy — skip Claude if overrideCopy is provided (user edited manually)
+  const copy = overrideCopy || await generateCopyWithClaude({
     brandData, emailType, offer, topProducts, isWelcome, flowType, anthropic
   })
 
