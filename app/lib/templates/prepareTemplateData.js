@@ -60,7 +60,8 @@ function sanitizeText(val) {
 function sanitizeUrl(val) {
   if (!val || typeof val !== 'string') return null
   const trimmed = val.trim()
-  if (!trimmed.startsWith('http')) return null
+  // Accept http/https URLs (remote) and blob: URLs (local file uploads)
+  if (!trimmed.startsWith('http') && !trimmed.startsWith('blob:')) return null
   return trimmed
 }
 
