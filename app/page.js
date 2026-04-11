@@ -380,8 +380,8 @@ export default function MailForge() {
                   <input
                     style={s.input}
                     placeholder="https://yourbrand.com/hero-photo.jpg"
-                    value={brand.uploadedHeroImage && brand.uploadedHeroImage.startsWith('http') ? brand.uploadedHeroImage : ''}
-                    onChange={e => setBrand(b => ({ ...b, uploadedHeroImage: e.target.value }))}
+                    value={brand.uploadedHeroImage && !brand.uploadedHeroImage.startsWith('blob:') ? brand.uploadedHeroImage : ''}
+                    onChange={e => setBrand(b => ({ ...b, uploadedHeroImage: e.target.value || null }))}
                   />
                 </div>
                 {/* Preview */}
