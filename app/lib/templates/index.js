@@ -76,18 +76,19 @@ const TEMPLATE_REGISTRY = [
  * - On regenerate, different random rolls = different output each time
  */
 export function selectTemplate(emailRole, brandTone) {
-  const suitableTemplates  = TEMPLATE_REGISTRY.filter(t => t.suitableRoles.includes(emailRole))
-  const acceptableTemplates = TEMPLATE_REGISTRY.filter(t => t.acceptableRoles.includes(emailRole))
+  // Always use a named template if one is suitable for this role.
+  // Block system is only used when no template covers the role.
+  const suitableTemplates = TEMPLATE_REGISTRY.filter(t =>
+    t.suitableRoles.includes(emailRole) || t.acceptableRoles.includes(emailRole)
+  )
 
-  // Try suitable templates first (60% chance each)
-  if (suitableTemplates.length > 0) {
-    const roll = Math.random()
-    if (roll < 0.60) {
-      // Pick randomly among suitable templates
-      return suitableTemplates[Math.floor(Math.random() * suitableTemplates.length)]
-    }
-  }
+  if (suitableTemplates.length === 0) return null
 
+  // Pick randomly among available templates for this role.
+  // When only one template exists, it always wins.
+  // When multiple templates exist, user gets variety on each regenerate.
+  return suitableTemplates[Math.floor(Math.random() * suitableTemplates.length)]
+}
   // Try acceptable templates (25% chance each)
   if (acceptableTemplates.length > 0) {
     const roll = Math.random()
