@@ -1,11 +1,15 @@
 /**
- * MailForge Email Generator v21
- * Now routes through template system in addition to block-based designEngine.
- * All flow logic, copy generation, and plain text emails unchanged.
+ * MailForge Email Generator v22
+ * Clean architecture — four layers:
+ * Layer 1: Data (scraper + user inputs)
+ * Layer 2: Normalize (prepareTemplateData)
+ * Layer 3: Copy (generateCopyWithClaude)
+ * Layer 4: Template (renderTemplate)
  */
 
-import { assembleEmail, getFontPairing } from './designEngine.js'
+import { getFontPairing } from './designEngine.js'
 import { selectTemplate, renderTemplate } from './templates/index.js'
+import { prepareTemplateData } from './templates/prepareTemplateData.js'
 
 // ─── FLOW GENERATOR ──────────────────────────────────────────────────────────
 
@@ -55,12 +59,7 @@ export async function generateFlow(brandData, flowType, offer, productImages, an
       ? await generatePlainTextEmail(brandData, flowType, step.role, offer, anthropic)
       : await generateEmail(brandData, step.role, offer, productImages, anthropic, generatedImages, flowType, step.showProducts)
 
-    emails.push({
-      label: step.label,
-      sendTime: step.sendTime,
-      isPlainText: step.isPlainText,
-      ...email,
-    })
+    emails.push({ label: step.label, sendTime: step.sendTime, isPlainText: step.isPlainText, ...email })
   }
 
   return emails
@@ -70,65 +69,42 @@ export async function generateFlow(brandData, flowType, offer, productImages, an
 
 export async function generateEmail(brandData, emailType, offer, productImages, anthropic, generatedImages, flowType = null, showProducts = true, overrideCopy = null) {
 
-  const isWelcome      = emailType === 'Welcome email' || emailType === 'discount_delivery'
-  const isAbandoned    = ['Abandoned cart', 'remind', 'build_trust', 'push', 'browse_remind', 'browse_desire', 'browse_push', 'checkout_remind', 'checkout_trust', 'checkout_push'].includes(emailType)
-  const isPostPurchase = ['Post-purchase', 'thank_you', 'how_to_use', 'social_proof', 'come_back'].includes(emailType)
+  const isWelcome       = emailType === 'Welcome email' || emailType === 'discount_delivery'
+  const isPostPurchase  = ['Post-purchase', 'thank_you', 'how_to_use', 'social_proof', 'come_back'].includes(emailType)
   const isDiscountEmail = ['push', 'urgency', 'browse_push', 'checkout_push', 'Flash sale', 'Win-back', 'Product launch', 'Abandoned cart'].includes(emailType)
 
-  const realProducts = []
-  if (productImages && productImages.length > 0) {
-    productImages.forEach(img => {
-      if (img.alt && img.alt.trim().length > 2) {
-        realProducts.push({ src: img.src, name: img.alt.trim() })
-      }
-    })
-  }
-  const topProducts = realProducts.slice(0, 3)
-
-  // Generate copy — skip Claude if overrideCopy is provided (user edited manually)
-  const copy = overrideCopy || await generateCopyWithClaude({
-    brandData, emailType, offer, topProducts, isWelcome, flowType, anthropic
+  // ── Layer 3: Copy ──────────────────────────────────────────────────────────
+  // Skip Claude if user provided overrideCopy (manual edit)
+  const rawCopy = overrideCopy || await generateCopyWithClaude({
+    brandData, emailType, offer, productImages, isWelcome, flowType, anthropic
   })
 
-  // ── TEMPLATE ROUTING ──────────────────────────────────────────────────────
-  // Check if a named template should be used for this email role.
-  // If selected, render the template. Otherwise fall back to the block system.
-  const brandTone  = brandData.brandTone || 'Warm & friendly'
-  const font       = getFontPairing(brandTone, brandData)
-  const template   = selectTemplate(emailType, brandTone)
+  // ── Layer 2: Normalize inputs ─────────────────────────────────────────────
+  // prepareTemplateData validates and sanitizes ALL inputs before rendering
+  const templateData = prepareTemplateData(brandData, rawCopy, productImages || [])
 
-  let html
-  if (template) {
-    // Named template selected — use agency-level Figma design
-    html = renderTemplate(template, {
-      brandData,
-      copy,
-      topProducts,
-      offer,
-      isWelcome,
-      isDiscountEmail,
-      showProducts,
-      font,
-    })
-  } else {
-    // Block system — flexible, brand-adaptive assembly
-    html = assembleEmail({
-      brandData,
-      emailType,
-      offer,
-      copy,
-      topProducts,
-      showProducts,
-      isWelcome,
-      isPostPurchase,
-      isDiscountEmail,
-      realQuote: brandData.bestTestimonialQuote || null,
-    })
-  }
+  // ── Layer 4: Template ─────────────────────────────────────────────────────
+  const brandTone = brandData.brandTone || 'Warm & friendly'
+  const font      = getFontPairing(brandTone, brandData)
+  const template  = selectTemplate()
+
+  const html = renderTemplate(template, {
+    brandData,
+    copy:         templateData.copy,
+    topProducts:  templateData.productImages,
+    offer,
+    isWelcome,
+    isPostPurchase,
+    isDiscountEmail,
+    showProducts,
+    font,
+    templateData, // full clean data object for templates that use it
+  })
 
   return {
-    subject_line: copy.subject_line,
-    preview_text: copy.preview_text,
+    subject_line: templateData.copy.subject_line,
+    preview_text: templateData.copy.preview_text,
+    copy:         rawCopy, // return raw copy so UI can populate edit fields
     html,
   }
 }
@@ -143,7 +119,6 @@ async function generatePlainTextEmail(brandData, flowType, role, offer, anthropi
 - Brief personal story about why they started the brand
 - Reference the welcome offer naturally: ${offer || 'none'}
 - End with a realistic founder first name sign-off`,
-
     'come_back': `Plain-text check-in email 7–14 days after purchase.
 - First person from customer success or founder, max 120 words
 - Start with "Hi {{ first_name | default: 'there' }},"
@@ -151,7 +126,6 @@ async function generatePlainTextEmail(brandData, flowType, role, offer, anthropi
 - Offer help if they have questions
 - Subtly mention complementary products: ${(brandData.productNames || []).join(', ')}
 - Personal sign-off`,
-
     'sub_loyalty': `Plain-text loyalty email 7–10 days into a subscription.
 - First person from the founder or customer success, max 120 words
 - Start with "Hi {{ first_name | default: 'there' }},"
@@ -160,8 +134,6 @@ async function generatePlainTextEmail(brandData, flowType, role, offer, anthropi
 - Reinforce their decision to subscribe
 - Personal sign-off`,
   }
-
-  const instructions = roleInstructions[role] || ''
 
   const prompt = `Write a plain-text email for ${brandData.brandName}.
 
@@ -176,7 +148,7 @@ BRAND:
 - Offer: ${offer || 'none'}
 
 INSTRUCTIONS:
-${instructions}
+${roleInstructions[role] || ''}
 
 Return this exact JSON:
 {
@@ -196,206 +168,182 @@ Return this exact JSON:
   let copy
   try { copy = JSON.parse(raw) } catch {
     try {
-      const start = raw.indexOf('{')
-      const end = raw.lastIndexOf('}')
+      const start = raw.indexOf('{'), end = raw.lastIndexOf('}')
       copy = JSON.parse(raw.substring(start, end + 1))
-    } catch {
-      throw new Error('Could not parse plain text email output')
-    }
+    } catch { throw new Error('Could not parse plain text email output') }
   }
 
   const html = assemblePlainTextEmail({ brandData, copy })
-  return { subject_line: copy.subject_line, preview_text: copy.preview_text, html }
+  return { subject_line: copy.subject_line, preview_text: copy.preview_text, copy, html }
 }
 
 function assemblePlainTextEmail({ brandData, copy }) {
-  const font = getFontPairing(brandData.brandTone || 'Warm & friendly')
+  const font = getFontPairing(brandData.brandTone || 'Warm & friendly', brandData)
   const bf = `'${font.body}',Arial,Helvetica,sans-serif`
   const body = (copy.body || '').replace(/\n/g, '<br>')
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>@import url('${font.importUrl}');</style></head><body style="margin:0;padding:20px 0;background:#f5f5f5;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center" style="margin:0 auto;max-width:600px;background:#ffffff;padding:48px 56px;font-family:${bf};font-size:15px;line-height:1.85;color:#333333;"><tr><td>${body}<br><br><p style="margin:28px 0 0;font-size:11px;color:#aaaaaa;border-top:1px solid #eeeeee;padding-top:16px;"><a href="#" style="color:#aaaaaa;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="#" style="color:#aaaaaa;text-decoration:underline;">Manage preferences</a></p></td></tr></table></body></html>`
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>@import url('${font.importUrl}');</style></head><body style="margin:0;padding:20px 0;background:#f5f5f5;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center" style="margin:0 auto;max-width:600px;background:#ffffff;padding:48px 56px;font-family:${bf};font-size:15px;line-height:1.85;color:#333333;"><tr><td>${body}<br><br><p style="margin:28px 0 0;font-size:11px;color:#aaaaaa;border-top:1px solid #eeeeee;padding-top:16px;"><a href="{{ unsubscribe_url }}" style="color:#aaaaaa;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="{{ manage_preferences_url }}" style="color:#aaaaaa;text-decoration:underline;">Manage preferences</a></p></td></tr></table></body></html>`
 }
 
 // ─── COPY GENERATION ─────────────────────────────────────────────────────────
 
-async function generateCopyWithClaude({ brandData, emailType, offer, topProducts, isWelcome, flowType, anthropic }) {
+async function generateCopyWithClaude({ brandData, emailType, offer, productImages, isWelcome, flowType, anthropic }) {
 
-  const systemPrompt = `You are an expert email copywriter for ecommerce brands. Output ONLY valid JSON. No markdown. Start with { and end with }.`
+  const topProductNames = (productImages || [])
+    .filter(img => img.alt && img.alt.trim().length > 2)
+    .slice(0, 3)
+    .map(img => img.alt.trim())
 
   const roleInstructions = {
-    'discount_delivery': `Email 1 of welcome flow. Send immediately.
-- Hero headline: personalized welcome with {{ first_name | default: 'there' }}, max 8 words. Example: "Welcome, {{ first_name | default: 'there' }} — here's your gift"
-- Hero subline: one sentence about the brand
-- Story: brief brand intro, only real USPs, max 2 paragraphs
-- CTA button: "SHOP NOW & SAVE" if offer exists, else "SHOP NOW"`,
+    'discount_delivery': `Email 1 of welcome flow. Deliver discount code immediately.
+- hero_headline: personalized welcome with {{ first_name | default: 'there' }}, max 8 words. Example: "Welcome, {{ first_name | default: 'there' }} — here's your gift"
+- story_p1: one sentence about the brand promise
+- story_p2: one sentence about what makes them different
+- pillars_heading: "WHY WOODWORKERS CHOOSE US" (brand-relevant equivalent)
+- pillars: 3 objects — title (USP name) + body (1-2 sentences). Use: ${(brandData.keySellingPoints || []).join(', ')}
+- cta_button: "SHOP NOW & SAVE"`,
 
-    'education': `Email 2 of welcome flow. Send 1 day later.
-- Build trust, educate about the product. No discount mention.
-- Hero headline: product benefit hook, max 6 words. No personalization needed.
-- Story: how it works, why it's different, use product names: ${(brandData.productNames || []).join(', ')}
-- pillars_heading: "THE KEY PILLARS" or similar (max 4 words, uppercase)
-- pillars: array of 3-4 objects with "title" and "body" (each body max 3 sentences)
-- CTA button: "SHOP NOW"`,
+    'education': `Email 2 of welcome flow. Educate about the product. No discount.
+- hero_headline: product benefit hook, max 6 words
+- story_p1 + story_p2: how the product works and why it's different
+- pillars_heading: "THE KEY BENEFITS" (brand-relevant)
+- pillars: 3 objects — title + body using: ${(brandData.productNames || []).join(', ')}
+- cta_button: "SHOP NOW"`,
 
-    'urgency': `Email 4 of welcome flow. Last chance. Send 3 days later.
-- Hero headline: urgency about offer expiring, include {{ first_name | default: 'there' }}, max 8 words. Example: "{{ first_name | default: 'there' }}, your discount expires today"
-- Story: last reminder of key benefits
-- Offer: ${offer || 'welcome discount'}
-- CTA button: "CLAIM MY DISCOUNT"
-- Urgency line: "This offer expires today"`,
+    'urgency': `Email 4 of welcome flow. Last chance. Urgency.
+- hero_headline: include {{ first_name | default: 'there' }}, urgency about offer expiring. Example: "{{ first_name | default: 'there' }}, your discount expires today"
+- story_p1: final reminder of key benefit
+- cta_button: "CLAIM MY DISCOUNT"
+- cta_headline: final push sentence
+- urgency_line: "This offer expires today"`,
 
-    'thank_you': `Email 1 of post-purchase flow. Send right after purchase.
-- Celebratory, warm, reassuring. No discount.
-- Hero headline: celebrate with personalization, max 8 words. Example: "Your order is confirmed, {{ first_name | default: 'there' }}!"
-- Story: welcome them, make them feel they made the right choice
-- CTA button: "TRACK MY ORDER"`,
+    'thank_you': `Post-purchase thank you. Warm, celebratory. No discount.
+- hero_headline: celebrate with {{ first_name | default: 'there' }}. Example: "Your order is confirmed, {{ first_name | default: 'there' }}!"
+- story_p1: welcome them, reassure their choice
+- cta_button: "TRACK MY ORDER"`,
 
-    'how_to_use': `Email 2 of post-purchase flow. Send 1–2 days later.
-- Teach them how to use the product. NO selling. NO discount.
-- Hero headline: about using the product, max 6 words. No personalization needed.
-- Story: intro paragraph
-- pillars_heading: "HOW TO GET STARTED" or similar (max 4 words, uppercase)
-- pillars: array of 3 objects with "title" (short step name) and "body" (1-2 sentences each)
-- CTA button: "VISIT OUR BLOG"`,
+    'how_to_use': `How to use the product. Educational. No selling.
+- hero_headline: about using the product, max 6 words
+- story_p1: intro paragraph
+- pillars_heading: "HOW TO GET STARTED"
+- pillars: 3 step-by-step tips for ${(brandData.productNames || [])[0] || brandData.productType}
+- cta_button: "VISIT OUR BLOG"`,
 
-    'social_proof': `Email 3 of post-purchase flow. Send 3–5 days later.
-- Show reviews, suggest complementary products. No discount.
-- Hero headline: social proof focused, max 6 words. No personalization needed.
-- product_label: "YOU MIGHT ALSO LOVE"
-- product_headline: complementary products from: ${(brandData.productNames || []).join(', ')}
-- CTA button: "SHOP MORE"`,
+    'social_proof': `Social proof email. Reviews and complementary products.
+- hero_headline: social proof hook, max 6 words
+- story_p1: what customers are saying
+- pillars_heading: "WHAT CUSTOMERS LOVE"
+- pillars: 3 customer benefit stories
+- cta_button: "SHOP MORE"`,
 
-    'remind': `Email 1 of abandoned cart flow. Send 1 hour after abandonment.
-- Just remind them. No discount. One clear CTA.
-- Hero headline: cart is waiting with personalization, max 8 words. Example: "{{ first_name | default: 'there' }}, your cart is waiting"
-- Hero subline: name these products: ${topProducts.map(p => p.name).join(', ')}
-- Story: 1 short paragraph — emotional connection to the product
-- CTA button: "COMPLETE MY ORDER"
-- Urgency line: "Items in your cart may sell out"`,
+    'remind': `Abandoned cart reminder. No discount. Direct.
+- hero_headline: cart waiting with {{ first_name | default: 'there' }}. Example: "{{ first_name | default: 'there' }}, your cart is waiting"
+- story_p1: emotional connection to the product
+- cta_button: "COMPLETE MY ORDER"
+- urgency_line: "Items in your cart may sell out"`,
 
-    'build_trust': `Email 2 of abandoned cart flow. Send 24 hours later.
-- Remove doubt. Show reviews. Answer objections. NO discount.
-- Hero headline: trust-building, max 6 words. No personalization needed.
-- pillars_heading: "WHY CUSTOMERS CHOOSE US" or similar
-- pillars: array of 3 trust reasons with "title" and "body" (each 1-2 sentences)
-- Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
-- CTA button: "COMPLETE MY ORDER"`,
+    'build_trust': `Abandoned cart — remove doubt. No discount.
+- hero_headline: trust-building, max 6 words
+- pillars_heading: "WHY CUSTOMERS TRUST US"
+- pillars: 3 trust reasons using: ${(brandData.keySellingPoints || []).join(', ')}
+- cta_button: "COMPLETE MY ORDER"`,
 
-    'push': `Email 3 of abandoned cart flow. Send 48–72 hours later.
-- Final push. Reveal discount if one exists.
-- Hero headline: urgency with personalization, max 8 words. Example: "{{ first_name | default: 'there' }}, this is your last chance"
-- Story: final push with urgency or scarcity
-- Offer: ${offer || 'none — use urgency instead'}
-- CTA button: "COMPLETE MY ORDER"
-- Urgency line: "This is your last reminder"`,
+    'push': `Abandoned cart — final push. Reveal discount if exists.
+- hero_headline: urgency with {{ first_name | default: 'there' }}. Example: "{{ first_name | default: 'there' }}, this is your last chance"
+- story_p1: final push
+- cta_button: "COMPLETE MY ORDER"
+- urgency_line: "This is your last reminder"`,
 
-    'browse_remind': `Email 1 of browse abandon flow. Send 1 hour after browsing.
-- Soft reminder. No discount, no pressure.
-- Hero headline: personalized, max 8 words. Example: "Still thinking it over, {{ first_name | default: 'there' }}?"
-- Hero subline: reference what they were browsing: ${(brandData.productNames || []).join(', ')}
-- Story: why these products are worth coming back for
-- CTA button: "CONTINUE BROWSING"
-- Urgency line: "Popular items sell out fast"`,
+    'browse_remind': `Browse abandon — soft reminder. No pressure.
+- hero_headline: soft personalized reminder. Example: "Still thinking it over, {{ first_name | default: 'there' }}?"
+- story_p1: why these products are worth coming back for
+- cta_button: "CONTINUE BROWSING"`,
 
-    'browse_desire': `Email 2 of browse abandon flow. Send 24 hours later.
-- Build desire and social proof. No discount.
-- Hero headline: desire-building, max 6 words. No personalization needed.
-- pillars_heading: "WHAT CUSTOMERS SAY" or similar
-- pillars: array of 3 customer benefit stories with "title" and "body"
-- Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
-- CTA button: "SHOP NOW"`,
+    'browse_desire': `Browse abandon — build desire. No discount.
+- hero_headline: desire-building, max 6 words
+- pillars_heading: "WHAT CUSTOMERS SAY"
+- pillars: 3 customer benefit stories
+- cta_button: "SHOP NOW"`,
 
-    'browse_push': `Email 3 of browse abandon flow. Send 48 hours later.
-- Final push with optional discount.
-- Hero headline: urgency or offer, max 6 words. No personalization needed.
-- Story: final reason to buy, scarcity or discount reveal
-- Offer: ${offer || 'none — use scarcity instead'}
-- CTA button: "SHOP NOW"
-- Urgency line: "Don't miss out"`,
+    'browse_push': `Browse abandon — final push.
+- hero_headline: urgency, max 6 words
+- story_p1: final reason to buy
+- cta_button: "SHOP NOW"
+- urgency_line: "Don't miss out"`,
 
-    'checkout_remind': `Email 1 of checkout abandon flow. Send 30 min after abandonment.
-- They almost finished. Super direct.
-- Hero headline: personalized, max 8 words. Example: "{{ first_name | default: 'there' }}, you're one click away"
-- Hero subline: their order is saved and waiting
-- Story: 1 short paragraph — reassure them, their items are held
-- CTA button: "COMPLETE MY ORDER"
-- Urgency line: "Your order is saved — complete it now"`,
+    'checkout_remind': `Checkout abandon — very close. Direct.
+- hero_headline: {{ first_name | default: 'there' }}, one click away. Example: "{{ first_name | default: 'there' }}, you're one click away"
+- story_p1: items saved, reassure them
+- cta_button: "COMPLETE MY ORDER"
+- urgency_line: "Your order is saved — complete it now"`,
 
-    'checkout_trust': `Email 2 of checkout abandon flow. Send 24 hours later.
-- Remove final purchase objections. No discount.
-- Hero headline: trust and security focused, max 6 words. No personalization needed.
-- pillars_heading: "YOUR ORDER IS PROTECTED" or similar
-- pillars: array of 3 objects covering guarantee, returns, payment security
-- Use real USPs: ${(brandData.keySellingPoints || []).join(', ')}
-- CTA button: "COMPLETE MY ORDER"`,
+    'checkout_trust': `Checkout abandon — remove final objections.
+- hero_headline: trust and security, max 6 words
+- pillars_heading: "YOUR ORDER IS PROTECTED"
+- pillars: 3 items — guarantee, returns, secure payment
+- cta_button: "COMPLETE MY ORDER"`,
 
-    'checkout_push': `Email 3 of checkout abandon flow. Send 48 hours later.
-- Last chance. Reveal discount now.
-- Hero headline: final urgency with personalization, max 8 words. Example: "{{ first_name | default: 'there' }}, your cart expires today"
-- Story: last push — discount reveal, cart expiring
-- Offer: ${offer || 'none — use cart expiry urgency instead'}
-- CTA button: "COMPLETE MY ORDER"
-- Urgency line: "This is your final reminder"`,
+    'checkout_push': `Checkout abandon — last chance.
+- hero_headline: final urgency with {{ first_name | default: 'there' }}. Example: "{{ first_name | default: 'there' }}, your cart expires today"
+- story_p1: cart expiring, discount reveal
+- cta_button: "COMPLETE MY ORDER"
+- urgency_line: "This is your final reminder"`,
 
-    'sub_welcome': `Email 1 of subscription onboarding. Send immediately.
-- Welcome them to the subscription. Set expectations.
-- Hero headline: personalized welcome, max 8 words. Example: "Welcome to the family, {{ first_name | default: 'there' }}!"
-- Hero subline: what they can expect from their subscription
-- Story: what's coming in their first order, how to get the most out of it
-- CTA button: "MANAGE MY SUBSCRIPTION"`,
+    'sub_welcome': `Subscription welcome. Set expectations.
+- hero_headline: personalized welcome. Example: "Welcome to the family, {{ first_name | default: 'there' }}!"
+- story_p1 + story_p2: what to expect
+- cta_button: "MANAGE MY SUBSCRIPTION"`,
 
-    'sub_habit': `Email 2 of subscription onboarding. Send 1–2 days later.
-- Teach them how to build a daily habit.
-- Hero headline: about building the daily habit, max 6 words. No personalization needed.
-- pillars_heading: "YOUR DAILY RITUAL" or similar
-- pillars: array of 3 steps for building the habit, each with "title" and "body"
-- CTA button: "LEARN MORE TIPS"`,
+    'sub_habit': `Subscription — build daily habit.
+- hero_headline: about building the habit, max 6 words
+- pillars_heading: "YOUR DAILY RITUAL"
+- pillars: 3 daily routine steps
+- cta_button: "LEARN MORE TIPS"`,
 
-    'sub_expectations': `Email 3 of subscription onboarding. Send 3–5 days later.
-- Set realistic results expectations to prevent churn.
-- Hero headline: about what they'll experience, max 6 words. No personalization needed.
-- pillars_heading: "WHAT TO EXPECT" or similar
-- pillars: array of 3 timeline milestones (week 1, month 1, month 3) with "title" and "body"
-- Do NOT overpromise.
-- CTA button: "TRACK YOUR PROGRESS"`,
+    'sub_expectations': `Subscription — set realistic expectations.
+- hero_headline: what they'll experience, max 6 words
+- pillars_heading: "WHAT TO EXPECT"
+- pillars: 3 milestones (week 1, month 1, month 3)
+- cta_button: "TRACK YOUR PROGRESS"`,
 
-    'Welcome email': `Welcome email #1. Deliver discount code.
-- Hero headline: personalized welcome, max 8 words. Example: "Welcome, {{ first_name | default: 'there' }} — here's your gift"
-- Story: brief brand intro, only real USPs
-- CTA button: "SHOP NOW & SAVE" if offer, else "SHOP NOW"`,
+    'Welcome email': `Welcome email. Deliver discount.
+- hero_headline: personalized welcome with {{ first_name | default: 'there' }}. Example: "Welcome, {{ first_name | default: 'there' }} — here's your gift"
+- story_p1 + story_p2: brief brand intro with real USPs
+- pillars_heading: "WHY CUSTOMERS LOVE US"
+- pillars: 3 USPs from: ${(brandData.keySellingPoints || []).join(', ')}
+- cta_button: "SHOP NOW & SAVE"`,
 
-    'Abandoned cart': `Abandoned cart. No discount — mystery mechanic.
-- Hero headline: personalized, max 8 words. Example: "{{ first_name | default: 'there' }}, your cart is waiting"
-- Hero subline: reference: ${topProducts.map(p => p.name).join(', ')}
-- Story: emotional connection + mystery offer hint
-- CTA button: "COMPLETE MY ORDER"`,
+    'Abandoned cart': `Abandoned cart. Mystery offer mechanic.
+- hero_headline: personalized. Example: "{{ first_name | default: 'there' }}, your cart is waiting"
+- story_p1: emotional connection
+- cta_button: "COMPLETE MY ORDER"`,
 
     'Post-purchase': `Post-purchase thank you. No discount.
-- Hero headline: personalized celebration, max 8 words. Example: "Your order is confirmed, {{ first_name | default: 'there' }}!"
-- Story: what happens next, care tips
-- CTA button: "TRACK MY ORDER"`,
+- hero_headline: celebration. Example: "Your order is confirmed, {{ first_name | default: 'there' }}!"
+- story_p1: what happens next
+- cta_button: "TRACK MY ORDER"`,
 
-    'Flash sale': `Flash sale. Urgent and exciting. No personalization needed.
-- Hero headline: offer or urgency, max 6 words
-- Offer: ${offer || 'limited time discount'}
-- CTA button: "SHOP THE SALE"
-- Urgency line: "Sale ends soon"`,
+    'Flash sale': `Flash sale. Urgent.
+- hero_headline: offer or urgency, max 6 words. No personalization.
+- story_p1: urgency copy
+- cta_button: "SHOP THE SALE"
+- urgency_line: "Sale ends soon"`,
 
     'Win-back': `Win-back for inactive subscribers.
-- Hero headline: personalized, max 8 words. Example: "We've missed you, {{ first_name | default: 'there' }}"
-- pillars_heading: "WHAT'S NEW SINCE YOU LEFT" or similar
-- pillars: array of 3 new things or improvements with "title" and "body"
-- CTA button: "COME BACK & SAVE" if offer, else "SEE WHAT'S NEW"`,
+- hero_headline: we missed you with {{ first_name | default: 'there' }}. Example: "We've missed you, {{ first_name | default: 'there' }}"
+- pillars_heading: "WHAT'S NEW SINCE YOU LEFT"
+- pillars: 3 new things or improvements
+- cta_button: "SEE WHAT'S NEW"`,
 
-    'Product launch': `Product launch announcement. No personalization needed.
-- Hero headline: announce new product, max 6 words
-- pillars_heading: "WHY THIS CHANGES EVERYTHING" or similar
-- pillars: array of 3 key features or benefits with "title" and "body"
-- CTA button: "SHOP THE NEW COLLECTION"`,
+    'Product launch': `Product launch announcement. No personalization.
+- hero_headline: announce new product, max 6 words
+- pillars_heading: "WHY THIS CHANGES EVERYTHING"
+- pillars: 3 key features or benefits
+- cta_button: "SHOP THE NEW COLLECTION"`,
   }
 
-  const instructions = roleInstructions[emailType] || ''
+  const instructions = roleInstructions[emailType] || roleInstructions['Welcome email']
 
-  const prompt = `Write copy for a ${emailType} email for ${brandData.brandName}.
+  const prompt = `Write email copy for ${brandData.brandName}.
 
 BRAND:
 - Name: ${brandData.brandName}
@@ -410,25 +358,23 @@ BRAND:
 - Mission: ${brandData.missionStatement || ''}
 - Offer: ${offer || 'none'}
 
-EMAIL INSTRUCTIONS:
+EMAIL ROLE: ${emailType}
+INSTRUCTIONS:
 ${instructions}
 
 GLOBAL RULES:
-- Only use information provided above. Never invent facts or details.
-- Write in the brand voice. Be specific to the niche and products.
-- Keep headlines punchy and short (max 8 words).
-- Keep paragraphs to 2-3 sentences max.
-- testimonial_name: realistic customer first name and last initial only (e.g. "James R."). NEVER use the brand name.
-- Klaviyo variable {{ first_name | default: 'there' }} — use ONLY where the instructions above say to. Write it exactly as shown.
-- If instructions mention "pillars", include a "pillars_heading" string and a "pillars" array of objects with "title" and "body" keys.
+- Only use information provided. Never invent facts.
+- Keep headlines max 8 words.
+- Paragraphs max 2-3 sentences each.
+- Klaviyo variable {{ first_name | default: 'there' }} — use ONLY where instructions say to. Write it exactly as shown.
+- If instructions mention pillars, include pillars_heading (string) and pillars (array of {title, body}).
 
-Return this exact JSON:
+Return this exact JSON (include all fields, use empty string or empty array if not applicable):
 {
   "subject_line": "...",
   "preview_text": "...",
   "hero_headline": "...",
   "hero_subline": "...",
-  "hero_eyebrow": "...",
   "story_label": "...",
   "story_headline": "...",
   "story_p1": "...",
@@ -436,20 +382,16 @@ Return this exact JSON:
   "story_p3": "...",
   "pillars_heading": "...",
   "pillars": [],
-  "product_label": "...",
-  "product_headline": "...",
+  "cta_button": "...",
   "cta_headline": "...",
   "cta_sub": "...",
-  "cta_label": "...",
-  "cta_button": "...",
-  "urgency_line": "...",
-  "testimonial_name": "..."
+  "urgency_line": "..."
 }`
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1200,
-    system: systemPrompt,
+    system: `You are an expert email copywriter. Output ONLY valid JSON. No markdown. Start with { and end with }.`,
     messages: [{ role: 'user', content: prompt }],
   })
 
@@ -460,8 +402,7 @@ Return this exact JSON:
     return JSON.parse(cleaned)
   } catch {}
   try {
-    const start = raw.indexOf('{')
-    const end = raw.lastIndexOf('}')
+    const start = raw.indexOf('{'), end = raw.lastIndexOf('}')
     if (start !== -1 && end !== -1) return JSON.parse(raw.substring(start, end + 1))
   } catch {}
   throw new Error('Could not parse copy output. Please try again.')
