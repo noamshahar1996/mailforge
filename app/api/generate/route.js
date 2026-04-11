@@ -27,7 +27,7 @@ async function withRetry(fn, retries = 3, delayMs = 2000) {
 
 export async function POST(request) {
   try {
-    const { brandData, emailType, offer, selectedImages, generatedImages, mode, flowType } = await request.json()
+    const { brandData, emailType, offer, selectedImages, generatedImages, mode, flowType, overrideCopy } = await request.json()
 
     if (!brandData) {
       return NextResponse.json({ error: 'brandData is required' }, { status: 400 })
@@ -47,7 +47,7 @@ export async function POST(request) {
       if (!emailType) return NextResponse.json({ error: 'emailType is required' }, { status: 400 })
 
       const result = await withRetry(() =>
-        generateEmail(brandData, emailType, offer, selectedImages, anthropic, generatedImages)
+        generateEmail(brandData, emailType, offer, selectedImages, anthropic, generatedImages, null, true, overrideCopy)
       )
 
       if (!result.html || result.html.length < 100) {
