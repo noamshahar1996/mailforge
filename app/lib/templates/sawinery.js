@@ -147,7 +147,7 @@ export function renderEditorialTemplate({
   const heroImage = d.heroImageUrl ? `
 <tr><td bgcolor="${lightBg}" style="padding:16px 0 0;font-size:0;line-height:0;">
   <div style="position:relative;overflow:hidden;">
-    <img src="${d.heroImageUrl}" width="600" style="display:block;width:600px;max-width:100%;height:460px;object-fit:cover;border:0;" alt="${d.brandName}">
+    <img src="${d.heroImageUrl}" width="600" style="display:block;width:100%;height:auto;border:0;" alt="${d.brandName}">
     <div style="position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to bottom,rgba(${hexToRgb(lightBg)},0) 0%,rgba(${hexToRgb(lightBg)},0.7) 100%);pointer-events:none;"></div>
   </div>
 </td></tr>` : ''
