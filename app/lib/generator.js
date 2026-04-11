@@ -79,9 +79,11 @@ export async function generateEmail(brandData, emailType, offer, productImages, 
     brandData, emailType, offer, productImages, isWelcome, flowType, anthropic
   })
 
-  // ── Layer 2: Normalize inputs ─────────────────────────────────────────────
-  // prepareTemplateData validates and sanitizes ALL inputs before rendering
+  // Layer 2: Normalize inputs
   const templateData = prepareTemplateData(brandData, rawCopy, productImages || [])
+
+  // DEBUG: confirm hero image survived sanitization
+  console.log('[MailForge] templateData.heroImageUrl:', templateData.heroImageUrl)
 
   // ── Layer 4: Template ─────────────────────────────────────────────────────
   const brandTone = brandData.brandTone || 'Warm & friendly'
