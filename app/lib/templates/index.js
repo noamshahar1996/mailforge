@@ -2,109 +2,106 @@
  * MailForge Template Registry
  *
  * HOW IT WORKS:
- * - Each named template is a full HTML layout built from Figma/agency designs.
- * - Templates are registered here with metadata: which email roles they suit.
- * - On each generation, the system randomly picks between the block-based engine
- *   (designEngine.js) and a named template, weighted toward templates for roles
- *   where they exist.
- * - As more Figma designs are added, register them here and the system automatically
- *   includes them in the rotation.
+ * - Every email always uses a named template from this registry when one is available.
+ * - The block system (designEngine.js) is the fallback only when no template covers the role.
+ * - When multiple templates cover the same role, one is picked randomly — giving users
+ *   variety on each regenerate without needing to change any other code.
  *
  * TO ADD A NEW TEMPLATE:
  * 1. Build the template file in app/lib/templates/yourtemplate.js
  * 2. Import it here
- * 3. Add it to TEMPLATE_REGISTRY with its suitable roles
+ * 3. Add it to TEMPLATE_REGISTRY with its suitableRoles
+ * 4. Done — the system automatically includes it in rotation
  */
 
 import { renderEditorialTemplate } from './sawinery.js'
 
 // ─── TEMPLATE REGISTRY ────────────────────────────────────────────────────────
-// Each entry defines which email roles the template is suitable for.
-// A template is only selected for roles it matches.
-// 'weight' controls how often it's picked vs the block system (1 = equal chance).
 
 const TEMPLATE_REGISTRY = [
   {
     id: 'editorial_pillar',
     name: 'Editorial Pillar',
     render: renderEditorialTemplate,
-    weight: 1,
-    // Best for educational, content-heavy, and trust-building emails
+    // All email roles this template can handle.
+    // Right now this covers everything — when Template 2 is added,
+    // move shared roles there too so users get variety.
     suitableRoles: [
+      // Welcome flow
+      'discount_delivery',
       'education',
+      'urgency',
+      // Post-purchase flow
+      'thank_you',
       'how_to_use',
       'social_proof',
+      // Abandoned cart flow
+      'remind',
       'build_trust',
+      'push',
+      // Browse abandon flow
+      'browse_remind',
       'browse_desire',
+      'browse_push',
+      // Checkout abandon flow
+      'checkout_remind',
       'checkout_trust',
+      'checkout_push',
+      // Subscription flow
+      'sub_welcome',
       'sub_habit',
       'sub_expectations',
-      // Single email types
+      // Single emails
+      'Welcome email',
+      'Abandoned cart',
+      'Post-purchase',
+      'Flash sale',
       'Win-back',
       'Product launch',
     ],
-    // Roles where this template can be used but is not ideal
-    acceptableRoles: [
-      'discount_delivery',
-      'thank_you',
-      'sub_welcome',
-      'remind',
-      'Welcome email',
-      'Post-purchase',
-    ],
+    acceptableRoles: [],
   },
-  // ── ADD MORE TEMPLATES HERE AS YOU BUILD THEM ──
+
+  // ── ADD MORE TEMPLATES HERE AS YOU BUILD THEM ──────────────────────────────
+  // Example — once you have a second Figma design ready:
+  //
   // {
   //   id: 'bold_campaign',
   //   name: 'Bold Campaign',
   //   render: renderBoldCampaignTemplate,
-  //   weight: 1,
-  //   suitableRoles: ['urgency', 'push', 'Flash sale', 'checkout_push'],
-  //   acceptableRoles: ['browse_push', 'Abandoned cart'],
+  //   suitableRoles: [
+  //     'urgency', 'push', 'Flash sale', 'checkout_push',
+  //     'browse_push', 'Abandoned cart',
+  //   ],
+  //   acceptableRoles: [],
   // },
 ]
 
 // ─── TEMPLATE SELECTOR ────────────────────────────────────────────────────────
 /**
- * Decides whether to use a named template or the block-based engine.
- * Returns the template entry if one is selected, or null to use the block system.
+ * Always returns a named template when one covers the email role.
+ * Falls back to null (block system) only when no template matches.
  *
- * Selection logic:
- * - If a template is "suitable" for the role, it has a 60% chance of being chosen
- * - If a template is only "acceptable" for the role, it has a 25% chance
- * - If no template matches, always uses the block system
- * - On regenerate, different random rolls = different output each time
+ * When multiple templates cover the same role, one is picked randomly —
+ * so users see different designs on each regenerate automatically.
  */
 export function selectTemplate(emailRole, brandTone) {
-  // Always use a named template if one is suitable for this role.
-  // Block system is only used when no template covers the role.
-  const suitableTemplates = TEMPLATE_REGISTRY.filter(t =>
-    t.suitableRoles.includes(emailRole) || t.acceptableRoles.includes(emailRole)
+  const available = TEMPLATE_REGISTRY.filter(t =>
+    t.suitableRoles.includes(emailRole) ||
+    t.acceptableRoles.includes(emailRole)
   )
 
-  if (suitableTemplates.length === 0) return null
+  if (available.length === 0) return null
 
-  // Pick randomly among available templates for this role.
-  // When only one template exists, it always wins.
-  // When multiple templates exist, user gets variety on each regenerate.
-  return suitableTemplates[Math.floor(Math.random() * suitableTemplates.length)]
-}
-  // Try acceptable templates (25% chance each)
-  if (acceptableTemplates.length > 0) {
-    const roll = Math.random()
-    if (roll < 0.25) {
-      return acceptableTemplates[Math.floor(Math.random() * acceptableTemplates.length)]
-    }
-  }
-
-  // Use block-based engine
-  return null
+  // Single template = always chosen
+  // Multiple templates = random pick for variety
+  return available[Math.floor(Math.random() * available.length)]
 }
 
 // ─── TEMPLATE RENDERER ────────────────────────────────────────────────────────
 /**
  * Calls the selected template's render function with all required data.
- * This is the single entry point — generator.js calls this instead of assembleEmail() directly.
+ * generator.js calls this — it never needs to know which template was picked.
  */
 export function renderTemplate(template, {
   brandData,
