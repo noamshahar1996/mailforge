@@ -102,7 +102,7 @@ export function renderEditorialTemplate({
     : `<span style="font-family:${df};font-size:24px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${primaryText};">${d.brandName.toUpperCase()}</span>`
 
   const header = `
-<tr><td bgcolor="${primary}" style="padding:32px 40px 28px;text-align:center;">
+<tr><td bgcolor="${primary}" style="padding:36px 40px 32px;text-align:center;">
   ${logoContent}
 </td></tr>`
 
@@ -135,17 +135,17 @@ export function renderEditorialTemplate({
   const line2 = headlineParts[1] ? headlineParts[1].trim() : ''
 
   const heroHeadline = `
-<tr><td bgcolor="${lightBg}" style="padding:44px 32px 16px;text-align:center;">
-  <div style="font-family:${df};font-size:40px;font-weight:800;color:#000000;line-height:1.05;letter-spacing:-0.5px;margin-bottom:${line2 ? '14px' : '0'};">${line1}</div>
-  ${line2 ? `<div style="display:inline-block;background:${accent};border-radius:8px;padding:8px 24px;">
-    <span style="font-family:${df};font-size:40px;font-weight:800;color:${accentText};letter-spacing:-0.5px;">${line2}</span>
+<tr><td bgcolor="${lightBg}" style="padding:52px 40px 20px;text-align:center;">
+  <div style="font-family:${df};font-size:42px;font-weight:800;color:#000000;line-height:1.0;letter-spacing:-1px;margin-bottom:${line2 ? '14px' : '0'};">${line1}</div>
+  ${line2 ? `<div style="display:inline-block;background:${accent};border-radius:8px;padding:8px 28px;">
+    <span style="font-family:${df};font-size:42px;font-weight:800;color:${accentText};letter-spacing:-1px;">${line2}</span>
   </div>` : ''}
 </td></tr>`
 
   // ── 4. HERO IMAGE — only if heroImageUrl is provided ─────────────────────────
   // No gradient fallback. No placeholder. If null → section is skipped entirely.
   const heroImage = d.heroImageUrl ? `
-<tr><td bgcolor="${lightBg}" style="padding:16px 0 0;font-size:0;line-height:0;">
+<tr><td bgcolor="${lightBg}" style="padding:0;font-size:0;line-height:0;">
   <div style="position:relative;overflow:hidden;">
     <img src="${d.heroImageUrl}" width="600" style="display:block;width:100%;height:auto;border:0;" alt="${d.brandName}">
     <div style="position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to bottom,rgba(${hexToRgb(lightBg)},0) 0%,rgba(${hexToRgb(lightBg)},0.7) 100%);pointer-events:none;"></div>
@@ -154,58 +154,58 @@ export function renderEditorialTemplate({
 
   // ── 5. DISCOUNT CODE — only for welcome emails with an offer ─────────────────
   const discountCode = isWelcome && offer ? `
-<tr><td bgcolor="${lightBg}" style="padding:44px 56px 20px;text-align:center;">
-  <p style="font-family:${bf};font-size:10px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:rgba(0,0,0,0.3);margin:0 0 16px;">Your exclusive welcome gift</p>
+<tr><td bgcolor="${lightBg}" style="padding:52px 56px 24px;text-align:center;">
+  <p style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:6px;text-transform:uppercase;color:rgba(0,0,0,0.28);margin:0 0 18px;">Your exclusive welcome gift</p>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
-    <tr><td style="border:2px dashed rgba(0,0,0,0.18);border-radius:12px;padding:16px 56px;">
-      <span style="font-family:${df};font-size:28px;font-weight:800;letter-spacing:12px;text-transform:uppercase;color:#000000;">${offer.toUpperCase()}</span>
+    <tr><td style="border:1px solid rgba(0,0,0,0.2);border-radius:4px;padding:18px 60px;">
+      <span style="font-family:${df};font-size:30px;font-weight:800;letter-spacing:14px;text-transform:uppercase;color:#000000;">${offer.toUpperCase()}</span>
     </td></tr>
   </table>
-  <p style="font-family:${bf};font-size:11px;color:rgba(0,0,0,0.3);margin:12px 0 0;letter-spacing:1px;">Apply at checkout · Expires in 48 hours</p>
+  <p style="font-family:${bf};font-size:11px;color:rgba(0,0,0,0.28);margin:14px 0 0;letter-spacing:1.5px;">Apply at checkout &nbsp;·&nbsp; Expires in 48 hours</p>
 </td></tr>` : ''
 
   // ── 6. BODY COPY — only if story_p1 exists ───────────────────────────────────
   const bodyCopy = c.story_p1 ? `
-<tr><td bgcolor="${lightBg}" style="padding:44px 60px 0;text-align:center;">
-  ${c.story_p1 ? `<p style="font-family:${bf};font-size:17px;font-weight:400;line-height:1.85;color:#333333;margin:0 0 18px;">${c.story_p1}</p>` : ''}
-  ${c.story_p2 ? `<p style="font-family:${bf};font-size:17px;font-weight:400;line-height:1.85;color:#333333;margin:0 0 18px;">${c.story_p2}</p>` : ''}
-  ${c.story_p3 ? `<p style="font-family:${bf};font-size:17px;font-weight:400;line-height:1.85;color:#333333;margin:0;">${c.story_p3}</p>` : ''}
+<tr><td bgcolor="${lightBg}" style="padding:52px 64px 0;text-align:center;">
+  ${c.story_p1 ? `<p style="font-family:${bf};font-size:16px;font-weight:400;line-height:1.9;color:#444444;margin:0 0 20px;">${c.story_p1}</p>` : ''}
+  ${c.story_p2 ? `<p style="font-family:${bf};font-size:16px;font-weight:400;line-height:1.9;color:#444444;margin:0 0 20px;">${c.story_p2}</p>` : ''}
+  ${c.story_p3 ? `<p style="font-family:${bf};font-size:16px;font-weight:400;line-height:1.9;color:#444444;margin:0;">${c.story_p3}</p>` : ''}
 </td></tr>
-<tr><td bgcolor="${lightBg}" style="padding:28px 56px 48px;text-align:center;">
-  <a href="#" style="display:inline-block;background:#111111;color:#ffffff;font-family:${bf};font-size:13px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:2.5px;padding:18px 56px;border-radius:4px;">${c.cta_button}</a>
-  ${c.urgency_line ? `<p style="font-family:${bf};font-size:12px;color:rgba(0,0,0,0.35);margin:14px 0 0;letter-spacing:0.5px;">${c.urgency_line}</p>` : ''}
+<tr><td bgcolor="${lightBg}" style="padding:32px 56px 56px;text-align:center;">
+  <a href="#" style="display:inline-block;background:#111111;color:#ffffff;font-family:${bf};font-size:11px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3px;padding:18px 60px;border-radius:2px;">${c.cta_button}</a>
+  ${c.urgency_line ? `<p style="font-family:${bf};font-size:11px;color:rgba(0,0,0,0.3);margin:16px 0 0;letter-spacing:1px;">${c.urgency_line}</p>` : ''}
 </td></tr>` : ''
 
   // ── 7. PILLARS ────────────────────────────────────────────────────────────────
   // Text-only if no product image — never hidden because of missing image.
   // Hidden only if pillars array is empty.
   const pillarsHeading = c.pillars_heading && c.pillars.length > 0 ? `
-<tr><td bgcolor="${lightBg}" style="padding:0 48px 0;">
+<tr><td bgcolor="${lightBg}" style="padding:0 56px;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-    <tr><td style="height:1px;background:rgba(0,0,0,0.08);font-size:0;line-height:0;">&nbsp;</td></tr>
+    <tr><td style="height:1px;background:rgba(0,0,0,0.07);font-size:0;line-height:0;">&nbsp;</td></tr>
   </table>
 </td></tr>
-<tr><td bgcolor="${lightBg}" style="padding:52px 40px 12px;text-align:center;">
+<tr><td bgcolor="${lightBg}" style="padding:56px 40px 16px;text-align:center;">
   <h2 style="font-family:${df};font-size:38px;font-weight:800;text-transform:uppercase;color:#000000;margin:0;line-height:1.0;letter-spacing:-0.5px;">${c.pillars_heading}</h2>
 </td></tr>` : ''
 
   const pillarRows = c.pillars.map((pillar, i) => {
     const isLeft     = i % 2 === 0
     const img        = d.productImages[i] || null
-    const numCircle  = `<div style="width:72px;height:72px;border-radius:50%;background:${darkAccent};display:inline-flex;align-items:center;justify-content:center;font-family:${df};font-size:26px;font-weight:800;color:#ffffff;line-height:1;">${i + 1}</div>`
+    const numCircle  = `<div style="width:68px;height:68px;border-radius:50%;background:${darkAccent};display:inline-flex;align-items:center;justify-content:center;font-family:${bf};font-size:22px;font-weight:700;color:#ffffff;line-height:1;">${i + 1}</div>`
 
     if (img) {
       const imgCell  = `<td width="248" style="vertical-align:top;padding-top:${isLeft ? '52' : '8'}px;${isLeft ? 'padding-right:24px;' : 'padding-left:24px;'}">
-        <img src="${img.src}" width="248" style="display:block;width:248px;height:186px;object-fit:cover;border-radius:12px;border:0;" alt="${img.name}">
+        <img src="${img.src}" width="248" style="display:block;width:248px;height:auto;border-radius:10px;border:0;" alt="${img.name}">
       </td>`
       const textCell = `<td style="vertical-align:top;padding-top:8px;">
-        <div style="text-align:left;margin-bottom:14px;">${numCircle}</div>
-        <h3 style="font-family:${df};font-size:22px;font-weight:800;text-transform:uppercase;color:#000000;margin:0 0 12px;line-height:1.15;letter-spacing:0.3px;">${pillar.title}</h3>
-        <p style="font-family:${bf};font-size:15px;font-weight:400;line-height:1.8;color:#444444;margin:0;">${pillar.body}</p>
+        <div style="margin-bottom:16px;">${numCircle}</div>
+        <h3 style="font-family:${df};font-size:20px;font-weight:800;text-transform:uppercase;color:#111111;margin:0 0 14px;line-height:1.2;letter-spacing:0.5px;">${pillar.title}</h3>
+        <p style="font-family:${bf};font-size:15px;font-weight:400;line-height:1.85;color:#555555;margin:0;">${pillar.body}</p>
       </td>`
 
       return `
-<tr><td bgcolor="${lightBg}" style="padding:28px 28px 12px;">
+<tr><td bgcolor="${lightBg}" style="padding:32px 32px 16px;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
       ${isLeft ? imgCell + textCell : textCell + imgCell}
@@ -214,15 +214,15 @@ export function renderEditorialTemplate({
 </td></tr>`
     } else {
       return `
-<tr><td bgcolor="${lightBg}" style="padding:28px 44px 12px;">
+<tr><td bgcolor="${lightBg}" style="padding:32px 48px 16px;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
       <td width="88" style="vertical-align:top;padding-top:4px;padding-right:24px;">
         ${numCircle}
       </td>
       <td style="vertical-align:top;">
-        <h3 style="font-family:${df};font-size:22px;font-weight:800;text-transform:uppercase;color:#000000;margin:0 0 12px;line-height:1.15;letter-spacing:0.3px;">${pillar.title}</h3>
-        <p style="font-family:${bf};font-size:15px;font-weight:400;line-height:1.8;color:#444444;margin:0;">${pillar.body}</p>
+        <h3 style="font-family:${df};font-size:20px;font-weight:800;text-transform:uppercase;color:#111111;margin:0 0 14px;line-height:1.2;letter-spacing:0.5px;">${pillar.title}</h3>
+        <p style="font-family:${bf};font-size:15px;font-weight:400;line-height:1.85;color:#555555;margin:0;">${pillar.body}</p>
       </td>
     </tr>
   </table>
@@ -234,24 +234,24 @@ export function renderEditorialTemplate({
 
   // ── 8. CLOSING CTA BAND — only if cta_headline exists ───────────────────────
   const closingCta = c.cta_headline ? `
-<tr><td bgcolor="${lightBg}" style="padding:16px 48px 0;">
+<tr><td bgcolor="${lightBg}" style="padding:0 56px;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-    <tr><td style="height:1px;background:rgba(0,0,0,0.08);font-size:0;line-height:0;">&nbsp;</td></tr>
+    <tr><td style="height:1px;background:rgba(0,0,0,0.07);font-size:0;line-height:0;">&nbsp;</td></tr>
   </table>
 </td></tr>
-<tr><td bgcolor="${lightBg}" style="padding:44px 60px 52px;text-align:center;">
-  <p style="font-family:${bf};font-size:17px;font-weight:400;line-height:1.75;color:#333333;margin:0 0 28px;">${c.cta_headline}</p>
-  <a href="#" style="display:inline-block;background:#111111;color:#ffffff;font-family:${bf};font-size:13px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:2.5px;padding:18px 56px;border-radius:4px;">${c.cta_button}</a>
+<tr><td bgcolor="${lightBg}" style="padding:52px 64px 60px;text-align:center;">
+  <p style="font-family:${bf};font-size:16px;font-weight:400;line-height:1.85;color:#444444;margin:0 0 32px;">${c.cta_headline}</p>
+  <a href="#" style="display:inline-block;background:#111111;color:#ffffff;font-family:${bf};font-size:11px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3px;padding:18px 60px;border-radius:2px;">${c.cta_button}</a>
 </td></tr>` : ''
 
   // ── 9. TRUST BADGES — only if real scraped data exists ──────────────────────
   const badges = []
   const ts = d.trustSignals
-  if (ts.freeShipping) badges.push({ icon: '&#128666;', label: ts.freeShipping })
-  if (ts.returns)      badges.push({ icon: '&#9989;',   label: ts.returns })
-  if (ts.reviews)      badges.push({ icon: '&#11088;',  label: ts.reviews })
-  if (ts.rating)       badges.push({ icon: '&#9733;',   label: ts.rating })
-  if (ts.quality)      badges.push({ icon: '&#10003;',  label: ts.quality })
+  if (ts.freeShipping) badges.push({ label: ts.freeShipping })
+  if (ts.returns)      badges.push({ label: ts.returns })
+  if (ts.reviews)      badges.push({ label: ts.reviews })
+  if (ts.rating)       badges.push({ label: ts.rating })
+  if (ts.quality)      badges.push({ label: ts.quality })
 
   const trustBadges = badges.length > 0 ? `
 <tr><td bgcolor="${accent}" style="padding:0;">
@@ -262,9 +262,8 @@ export function renderEditorialTemplate({
           ? `<td style="width:1px;background:${isDark(accent) ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)'};padding:0;font-size:0;">&nbsp;</td>`
           : ''
         const textColor = isDark(accent) ? '#ffffff' : darkenColor(accent, 0.35)
-        return `<td style="text-align:center;padding:18px 16px;vertical-align:middle;">
-          <div style="font-size:26px;line-height:1;margin-bottom:6px;">${b.icon}</div>
-          <div style="font-family:${bf};font-size:12px;font-weight:500;line-height:1.4;color:${textColor};">${b.label}</div>
+        return `<td style="text-align:center;padding:22px 16px;vertical-align:middle;">
+          <div style="font-family:${bf};font-size:13px;font-weight:700;line-height:1.3;color:${textColor};letter-spacing:0.3px;">${b.label}</div>
         </td>${sep}`
       }).join('')}
     </tr>
@@ -276,10 +275,10 @@ export function renderEditorialTemplate({
   const footerNavLinks = d.navLinks
 
   const footerNav = footerNavLinks.length > 0 ? `
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="padding:0 100px;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="padding:0 80px;">
     ${footerNavLinks.map(link => `
-    <tr><td style="border-top:1px solid rgba(255,255,255,0.15);padding:18px 0;text-align:center;">
-      <a href="#" style="font-family:${df};font-size:20px;font-weight:700;text-transform:uppercase;color:#ffffff;text-decoration:none;letter-spacing:0.5px;">${link.toUpperCase()}</a>
+    <tr><td style="border-top:1px solid rgba(255,255,255,0.12);padding:20px 0;text-align:center;">
+      <a href="#" style="font-family:${bf};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:rgba(255,255,255,0.8);text-decoration:none;">${link.toUpperCase()}</a>
     </td></tr>`).join('')}
     <tr><td style="border-top:1px solid rgba(255,255,255,0.12);padding:0;font-size:0;line-height:0;">&nbsp;</td></tr>
   </table>` : ''
@@ -289,18 +288,18 @@ export function renderEditorialTemplate({
     : `<span style="font-family:${df};font-size:16px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:${accent};">${d.brandName.toUpperCase()}</span>`
 
   const footer = `
-<tr><td bgcolor="${primary}" style="padding:12px 0 0;">
+<tr><td bgcolor="${primary}" style="padding:16px 0 0;">
   ${footerNav}
 </td></tr>
-<tr><td bgcolor="${primary}" style="padding:28px 40px 12px;text-align:center;">
+<tr><td bgcolor="${primary}" style="padding:36px 40px 16px;text-align:center;">
   ${footerLogoContent}
-  ${d.tagline ? `<p style="font-family:${bf};font-size:15px;font-weight:400;line-height:1.5;color:rgba(255,255,255,0.7);margin:8px 0 0;">${d.tagline}</p>` : ''}
+  ${d.tagline ? `<p style="font-family:${bf};font-size:13px;font-weight:400;line-height:1.6;color:rgba(255,255,255,0.55);margin:10px 0 0;">${d.tagline}</p>` : ''}
 </td></tr>
-<tr><td bgcolor="${primary}" style="padding:16px 40px 32px;text-align:center;">
-  <p style="font-family:${bf};font-size:11px;color:rgba(255,255,255,0.3);margin:0;line-height:1.8;">
-    <a href="{{ unsubscribe_url }}" style="color:rgba(255,255,255,0.35);text-decoration:underline;">Unsubscribe</a>
-    &nbsp;·&nbsp;
-    <a href="{{ manage_preferences_url }}" style="color:rgba(255,255,255,0.35);text-decoration:underline;">Manage preferences</a>
+<tr><td bgcolor="${primary}" style="padding:16px 40px 36px;text-align:center;">
+  <p style="font-family:${bf};font-size:10px;color:rgba(255,255,255,0.25);margin:0;line-height:1.8;letter-spacing:0.5px;">
+    <a href="{{ unsubscribe_url }}" style="color:rgba(255,255,255,0.3);text-decoration:underline;">Unsubscribe</a>
+    &nbsp;&nbsp;·&nbsp;&nbsp;
+    <a href="{{ manage_preferences_url }}" style="color:rgba(255,255,255,0.3);text-decoration:underline;">Manage preferences</a>
   </p>
 </td></tr>`
 
