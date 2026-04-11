@@ -135,73 +135,77 @@ export function renderEditorialTemplate({
   const line2 = headlineParts[1] ? headlineParts[1].trim() : ''
 
   const heroHeadline = `
-<tr><td bgcolor="${lightBg}" style="padding:28px 28px 0;text-align:center;">
-  <div style="font-family:${df};font-size:34px;font-weight:700;color:#000000;line-height:1.1;margin-bottom:${line2 ? '12px' : '20px'};">${line1}</div>
-  ${line2 ? `<div style="display:inline-block;background:${accent};border-radius:10px;padding:6px 20px;margin-bottom:16px;">
-    <span style="font-family:${df};font-size:34px;font-weight:700;color:${accentText};">${line2}</span>
+<tr><td bgcolor="${lightBg}" style="padding:44px 32px 16px;text-align:center;">
+  <div style="font-family:${df};font-size:40px;font-weight:800;color:#000000;line-height:1.05;letter-spacing:-0.5px;margin-bottom:${line2 ? '14px' : '0'};">${line1}</div>
+  ${line2 ? `<div style="display:inline-block;background:${accent};border-radius:8px;padding:8px 24px;">
+    <span style="font-family:${df};font-size:40px;font-weight:800;color:${accentText};letter-spacing:-0.5px;">${line2}</span>
   </div>` : ''}
 </td></tr>`
 
   // ── 4. HERO IMAGE — only if heroImageUrl is provided ─────────────────────────
   // No gradient fallback. No placeholder. If null → section is skipped entirely.
   const heroImage = d.heroImageUrl ? `
-<tr><td bgcolor="${lightBg}" style="padding:0 20px;font-size:0;line-height:0;">
-  <div style="position:relative;overflow:hidden;border-radius:0 0 24px 24px;">
-    <img src="${d.heroImageUrl}" width="560" style="display:block;width:560px;max-width:100%;height:380px;object-fit:cover;border-radius:0 0 24px 24px;border:0;" alt="${d.brandName}">
-    <div style="position:absolute;bottom:0;left:0;right:0;height:160px;background:linear-gradient(to bottom,rgba(${hexToRgb(lightBg)},0) 0%,${lightBg} 100%);pointer-events:none;"></div>
+<tr><td bgcolor="${lightBg}" style="padding:16px 0 0;font-size:0;line-height:0;">
+  <div style="position:relative;overflow:hidden;">
+    <img src="${d.heroImageUrl}" width="600" style="display:block;width:600px;max-width:100%;height:460px;object-fit:cover;border:0;" alt="${d.brandName}">
+    <div style="position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to bottom,rgba(${hexToRgb(lightBg)},0) 0%,rgba(${hexToRgb(lightBg)},0.7) 100%);pointer-events:none;"></div>
   </div>
 </td></tr>` : ''
 
   // ── 5. DISCOUNT CODE — only for welcome emails with an offer ─────────────────
   const discountCode = isWelcome && offer ? `
-<tr><td bgcolor="${lightBg}" style="padding:28px 56px 16px;text-align:center;">
-  <p style="font-family:${bf};font-size:10px;font-weight:600;letter-spacing:5px;text-transform:uppercase;color:rgba(0,0,0,0.35);margin:0 0 14px;">Your exclusive welcome gift</p>
+<tr><td bgcolor="${lightBg}" style="padding:44px 56px 20px;text-align:center;">
+  <p style="font-family:${bf};font-size:10px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:rgba(0,0,0,0.3);margin:0 0 16px;">Your exclusive welcome gift</p>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
-    <tr><td style="border:2px dashed rgba(0,0,0,0.2);border-radius:10px;padding:14px 52px;">
-      <span style="font-family:${df};font-size:26px;font-weight:700;letter-spacing:10px;text-transform:uppercase;color:#000000;">${offer.toUpperCase()}</span>
+    <tr><td style="border:2px dashed rgba(0,0,0,0.18);border-radius:12px;padding:16px 56px;">
+      <span style="font-family:${df};font-size:28px;font-weight:800;letter-spacing:12px;text-transform:uppercase;color:#000000;">${offer.toUpperCase()}</span>
     </td></tr>
   </table>
-  <p style="font-family:${bf};font-size:11px;color:rgba(0,0,0,0.35);margin:10px 0 0;letter-spacing:1px;">Apply at checkout · Expires in 48 hours</p>
+  <p style="font-family:${bf};font-size:11px;color:rgba(0,0,0,0.3);margin:12px 0 0;letter-spacing:1px;">Apply at checkout · Expires in 48 hours</p>
 </td></tr>` : ''
 
   // ── 6. BODY COPY — only if story_p1 exists ───────────────────────────────────
   const bodyCopy = c.story_p1 ? `
-<tr><td bgcolor="${lightBg}" style="padding:36px 56px 8px;text-align:center;">
-  ${c.story_p1 ? `<p style="font-family:${bf};font-size:18px;font-weight:400;line-height:1.75;color:#111111;margin:0 0 16px;">${c.story_p1}</p>` : ''}
-  ${c.story_p2 ? `<p style="font-family:${bf};font-size:18px;font-weight:400;line-height:1.75;color:#111111;margin:0 0 16px;">${c.story_p2}</p>` : ''}
-  ${c.story_p3 ? `<p style="font-family:${bf};font-size:18px;font-weight:400;line-height:1.75;color:#111111;margin:0;">${c.story_p3}</p>` : ''}
+<tr><td bgcolor="${lightBg}" style="padding:44px 60px 0;text-align:center;">
+  ${c.story_p1 ? `<p style="font-family:${bf};font-size:17px;font-weight:400;line-height:1.85;color:#333333;margin:0 0 18px;">${c.story_p1}</p>` : ''}
+  ${c.story_p2 ? `<p style="font-family:${bf};font-size:17px;font-weight:400;line-height:1.85;color:#333333;margin:0 0 18px;">${c.story_p2}</p>` : ''}
+  ${c.story_p3 ? `<p style="font-family:${bf};font-size:17px;font-weight:400;line-height:1.85;color:#333333;margin:0;">${c.story_p3}</p>` : ''}
 </td></tr>
-<tr><td bgcolor="${lightBg}" style="padding:20px 56px 32px;text-align:center;">
-  <a href="#" style="display:inline-block;background:#000000;color:#ffffff;font-family:${bf};font-size:16px;font-weight:600;text-transform:uppercase;text-decoration:none;letter-spacing:1.5px;padding:16px 52px;border-radius:12px;">${c.cta_button}</a>
-  ${c.urgency_line ? `<p style="font-family:${bf};font-size:12px;color:rgba(0,0,0,0.4);margin:12px 0 0;">${c.urgency_line}</p>` : ''}
+<tr><td bgcolor="${lightBg}" style="padding:28px 56px 48px;text-align:center;">
+  <a href="#" style="display:inline-block;background:#111111;color:#ffffff;font-family:${bf};font-size:13px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:2.5px;padding:18px 56px;border-radius:4px;">${c.cta_button}</a>
+  ${c.urgency_line ? `<p style="font-family:${bf};font-size:12px;color:rgba(0,0,0,0.35);margin:14px 0 0;letter-spacing:0.5px;">${c.urgency_line}</p>` : ''}
 </td></tr>` : ''
 
   // ── 7. PILLARS ────────────────────────────────────────────────────────────────
   // Text-only if no product image — never hidden because of missing image.
   // Hidden only if pillars array is empty.
   const pillarsHeading = c.pillars_heading && c.pillars.length > 0 ? `
-<tr><td bgcolor="${lightBg}" style="padding:44px 40px 8px;text-align:center;">
-  <h2 style="font-family:${df};font-size:36px;font-weight:700;text-transform:uppercase;color:#000000;margin:0;line-height:1.0;">${c.pillars_heading}</h2>
+<tr><td bgcolor="${lightBg}" style="padding:0 48px 0;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr><td style="height:1px;background:rgba(0,0,0,0.08);font-size:0;line-height:0;">&nbsp;</td></tr>
+  </table>
+</td></tr>
+<tr><td bgcolor="${lightBg}" style="padding:52px 40px 12px;text-align:center;">
+  <h2 style="font-family:${df};font-size:38px;font-weight:800;text-transform:uppercase;color:#000000;margin:0;line-height:1.0;letter-spacing:-0.5px;">${c.pillars_heading}</h2>
 </td></tr>` : ''
 
   const pillarRows = c.pillars.map((pillar, i) => {
     const isLeft     = i % 2 === 0
     const img        = d.productImages[i] || null
-    const numCircle  = `<div style="width:68px;height:68px;border-radius:50%;background:${darkAccent};display:inline-flex;align-items:center;justify-content:center;font-family:${df};font-size:24px;font-weight:700;color:#ffffff;line-height:1;">${i + 1}</div>`
+    const numCircle  = `<div style="width:72px;height:72px;border-radius:50%;background:${darkAccent};display:inline-flex;align-items:center;justify-content:center;font-family:${df};font-size:26px;font-weight:800;color:#ffffff;line-height:1;">${i + 1}</div>`
 
     if (img) {
-      // WITH image: two-column layout alternating left/right
-      const imgCell  = `<td width="244" style="vertical-align:top;padding-top:${isLeft ? '48' : '8'}px;${isLeft ? 'padding-right:20px;' : 'padding-left:20px;'}">
-        <img src="${img.src}" width="244" style="display:block;width:244px;height:180px;object-fit:cover;border-radius:16px;border:0;" alt="${img.name}">
+      const imgCell  = `<td width="248" style="vertical-align:top;padding-top:${isLeft ? '52' : '8'}px;${isLeft ? 'padding-right:24px;' : 'padding-left:24px;'}">
+        <img src="${img.src}" width="248" style="display:block;width:248px;height:186px;object-fit:cover;border-radius:12px;border:0;" alt="${img.name}">
       </td>`
       const textCell = `<td style="vertical-align:top;padding-top:8px;">
-        <div style="text-align:center;margin-bottom:12px;">${numCircle}</div>
-        <h3 style="font-family:${df};font-size:22px;font-weight:700;text-transform:uppercase;color:#000000;margin:0 0 10px;line-height:1.2;">${pillar.title}</h3>
-        <p style="font-family:${bf};font-size:15px;font-weight:400;line-height:1.75;color:#222222;margin:0;">${pillar.body}</p>
+        <div style="text-align:left;margin-bottom:14px;">${numCircle}</div>
+        <h3 style="font-family:${df};font-size:22px;font-weight:800;text-transform:uppercase;color:#000000;margin:0 0 12px;line-height:1.15;letter-spacing:0.3px;">${pillar.title}</h3>
+        <p style="font-family:${bf};font-size:15px;font-weight:400;line-height:1.8;color:#444444;margin:0;">${pillar.body}</p>
       </td>`
 
       return `
-<tr><td bgcolor="${lightBg}" style="padding:20px 24px 8px;">
+<tr><td bgcolor="${lightBg}" style="padding:28px 28px 12px;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
       ${isLeft ? imgCell + textCell : textCell + imgCell}
@@ -209,17 +213,16 @@ export function renderEditorialTemplate({
   </table>
 </td></tr>`
     } else {
-      // WITHOUT image: full-width text with number circle — still premium
       return `
-<tr><td bgcolor="${lightBg}" style="padding:20px 40px 8px;">
+<tr><td bgcolor="${lightBg}" style="padding:28px 44px 12px;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
-      <td width="80" style="vertical-align:top;padding-top:4px;padding-right:20px;text-align:center;">
+      <td width="88" style="vertical-align:top;padding-top:4px;padding-right:24px;">
         ${numCircle}
       </td>
       <td style="vertical-align:top;">
-        <h3 style="font-family:${df};font-size:22px;font-weight:700;text-transform:uppercase;color:#000000;margin:0 0 10px;line-height:1.2;">${pillar.title}</h3>
-        <p style="font-family:${bf};font-size:15px;font-weight:400;line-height:1.75;color:#222222;margin:0;">${pillar.body}</p>
+        <h3 style="font-family:${df};font-size:22px;font-weight:800;text-transform:uppercase;color:#000000;margin:0 0 12px;line-height:1.15;letter-spacing:0.3px;">${pillar.title}</h3>
+        <p style="font-family:${bf};font-size:15px;font-weight:400;line-height:1.8;color:#444444;margin:0;">${pillar.body}</p>
       </td>
     </tr>
   </table>
@@ -231,14 +234,14 @@ export function renderEditorialTemplate({
 
   // ── 8. CLOSING CTA BAND — only if cta_headline exists ───────────────────────
   const closingCta = c.cta_headline ? `
-<tr><td bgcolor="${lightBg}" style="padding:24px 64px 0;">
+<tr><td bgcolor="${lightBg}" style="padding:16px 48px 0;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-    <tr><td style="height:2px;background:${darkAccent};font-size:0;line-height:0;">&nbsp;</td></tr>
+    <tr><td style="height:1px;background:rgba(0,0,0,0.08);font-size:0;line-height:0;">&nbsp;</td></tr>
   </table>
 </td></tr>
-<tr><td bgcolor="${lightBg}" style="padding:24px 56px 36px;text-align:center;">
-  <p style="font-family:${bf};font-size:18px;font-weight:400;line-height:1.65;color:#111111;margin:0 0 24px;">${c.cta_headline}</p>
-  <a href="#" style="display:inline-block;background:#000000;color:#ffffff;font-family:${bf};font-size:16px;font-weight:600;text-transform:uppercase;text-decoration:none;letter-spacing:1.5px;padding:16px 52px;border-radius:12px;">${c.cta_button}</a>
+<tr><td bgcolor="${lightBg}" style="padding:44px 60px 52px;text-align:center;">
+  <p style="font-family:${bf};font-size:17px;font-weight:400;line-height:1.75;color:#333333;margin:0 0 28px;">${c.cta_headline}</p>
+  <a href="#" style="display:inline-block;background:#111111;color:#ffffff;font-family:${bf};font-size:13px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:2.5px;padding:18px 56px;border-radius:4px;">${c.cta_button}</a>
 </td></tr>` : ''
 
   // ── 9. TRUST BADGES — only if real scraped data exists ──────────────────────
