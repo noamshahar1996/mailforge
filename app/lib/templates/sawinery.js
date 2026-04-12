@@ -145,8 +145,7 @@ export function renderEditorialTemplate({
   ${c.hero_subline ? `<p style="font-family:${bf};font-size:16px;font-weight:400;color:rgba(0,0,0,0.5);margin:0 0 44px;line-height:1.5;">${c.hero_subline}</p>` : ''}
 
   ${isWelcome && offer ? `
-  <p style="font-family:${bf};font-size:14px;font-weight:400;color:rgba(0,0,0,0.5);margin:0 0 6px;">Use code at checkout</p>
-  <p style="font-family:${bf};font-size:24px;font-weight:800;color:#0a0a0a;letter-spacing:2px;margin:0 0 36px;line-height:1;">${offer.toUpperCase()}</p>
+  <p style="font-family:${bf};font-size:16px;font-weight:400;color:rgba(0,0,0,0.6);margin:0 0 36px;line-height:1.5;">Use code <span style="font-weight:800;color:#0a0a0a;letter-spacing:1px;">${offer.toUpperCase()}</span> at checkout</p>
   ` : ''}
 
   <table role="presentation" cellpadding="0" cellspacing="0" border="0">
