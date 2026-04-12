@@ -36,7 +36,7 @@ const TEMPLATES = [
  * so users see different designs on regenerate.
  */
 export function selectTemplate() {
-  return TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)]
+  return TEMPLATES.find(t => t.id === 'campaign_promo')
 }
 
 /**
