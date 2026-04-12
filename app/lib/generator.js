@@ -208,7 +208,7 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 
   const roleInstructions = {
     'discount_delivery': `Email 1 of welcome flow. Deliver discount code immediately.
-- hero_headline: personalized welcome with {{ first_name | default: 'there' }}, max 8 words. Example: "Welcome, {{ first_name | default: 'there' }} — here's your gift"
+- hero_headline: clean short welcome, NO personalization tag, max 6 words. Example: "Here's your exclusive gift"
 - story_p1: one sentence about the brand promise
 - story_p2: one sentence about what makes them different
 - pillars_heading: "WHY WOODWORKERS CHOOSE US" (brand-relevant equivalent)
@@ -223,14 +223,14 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 - cta_button: "SHOP NOW"`,
 
     'urgency': `Email 4 of welcome flow. Last chance. Urgency.
-- hero_headline: include {{ first_name | default: 'there' }}, urgency about offer expiring. Example: "{{ first_name | default: 'there' }}, your discount expires today"
+- hero_headline: urgency about offer expiring, NO personalization tag, max 6 words. Example: "Your discount expires today"
 - story_p1: final reminder of key benefit
 - cta_button: "CLAIM MY DISCOUNT"
 - cta_headline: final push sentence
 - urgency_line: "This offer expires today"`,
 
     'thank_you': `Post-purchase thank you. Warm, celebratory. No discount.
-- hero_headline: celebrate with {{ first_name | default: 'there' }}. Example: "Your order is confirmed, {{ first_name | default: 'there' }}!"
+- hero_headline: celebratory confirmation, NO personalization tag, max 6 words. Example: "Your order is confirmed"
 - story_p1: welcome them, reassure their choice
 - cta_button: "TRACK MY ORDER"`,
 
@@ -249,7 +249,7 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 - cta_button: "SHOP MORE"`,
 
     'remind': `Abandoned cart reminder. No discount. Direct.
-- hero_headline: cart waiting with {{ first_name | default: 'there' }}. Example: "{{ first_name | default: 'there' }}, your cart is waiting"
+- hero_headline: cart reminder, NO personalization tag, max 6 words. Example: "Your cart is waiting"
 - story_p1: emotional connection to the product
 - cta_button: "COMPLETE MY ORDER"
 - urgency_line: "Items in your cart may sell out"`,
@@ -261,13 +261,13 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 - cta_button: "COMPLETE MY ORDER"`,
 
     'push': `Abandoned cart — final push. Reveal discount if exists.
-- hero_headline: urgency with {{ first_name | default: 'there' }}. Example: "{{ first_name | default: 'there' }}, this is your last chance"
+- hero_headline: final urgency, NO personalization tag, max 6 words. Example: "This is your last chance"
 - story_p1: final push
 - cta_button: "COMPLETE MY ORDER"
 - urgency_line: "This is your last reminder"`,
 
     'browse_remind': `Browse abandon — soft reminder. No pressure.
-- hero_headline: soft personalized reminder. Example: "Still thinking it over, {{ first_name | default: 'there' }}?"
+- hero_headline: soft reminder, NO personalization tag, max 6 words. Example: "Still thinking it over?"
 - story_p1: why these products are worth coming back for
 - cta_button: "CONTINUE BROWSING"`,
 
@@ -284,7 +284,7 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 - urgency_line: "Don't miss out"`,
 
     'checkout_remind': `Checkout abandon — very close. Direct.
-- hero_headline: {{ first_name | default: 'there' }}, one click away. Example: "{{ first_name | default: 'there' }}, you're one click away"
+- hero_headline: almost there, NO personalization tag, max 6 words. Example: "You're one click away"
 - story_p1: items saved, reassure them
 - cta_button: "COMPLETE MY ORDER"
 - urgency_line: "Your order is saved — complete it now"`,
@@ -296,13 +296,13 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 - cta_button: "COMPLETE MY ORDER"`,
 
     'checkout_push': `Checkout abandon — last chance.
-- hero_headline: final urgency with {{ first_name | default: 'there' }}. Example: "{{ first_name | default: 'there' }}, your cart expires today"
+- hero_headline: cart expiry urgency, NO personalization tag, max 6 words. Example: "Your cart expires today"
 - story_p1: cart expiring, discount reveal
 - cta_button: "COMPLETE MY ORDER"
 - urgency_line: "This is your final reminder"`,
 
     'sub_welcome': `Subscription welcome. Set expectations.
-- hero_headline: personalized welcome. Example: "Welcome to the family, {{ first_name | default: 'there' }}!"
+- hero_headline: warm welcome, NO personalization tag, max 6 words. Example: "Welcome to the family"
 - story_p1 + story_p2: what to expect
 - cta_button: "MANAGE MY SUBSCRIPTION"`,
 
@@ -319,19 +319,19 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 - cta_button: "TRACK YOUR PROGRESS"`,
 
     'Welcome email': `Welcome email. Deliver discount.
-- hero_headline: personalized welcome with {{ first_name | default: 'there' }}. Example: "Welcome, {{ first_name | default: 'there' }} — here's your gift"
+- hero_headline: clean welcome, NO personalization tag, max 6 words. Example: "Here's your welcome gift"
 - story_p1 + story_p2: brief brand intro with real USPs
 - pillars_heading: "WHY CUSTOMERS LOVE US"
 - pillars: ${pc} USPs from: ${(brandData.keySellingPoints || []).join(', ')}
 - cta_button: "SHOP NOW & SAVE"`,
 
     'Abandoned cart': `Abandoned cart. Mystery offer mechanic.
-- hero_headline: personalized. Example: "{{ first_name | default: 'there' }}, your cart is waiting"
+- hero_headline: cart reminder, NO personalization tag, max 6 words. Example: "Your cart is waiting"
 - story_p1: emotional connection
 - cta_button: "COMPLETE MY ORDER"`,
 
     'Post-purchase': `Post-purchase thank you. No discount.
-- hero_headline: celebration. Example: "Your order is confirmed, {{ first_name | default: 'there' }}!"
+- hero_headline: celebration, NO personalization tag, max 6 words. Example: "Your order is confirmed"
 - story_p1: what happens next
 - cta_button: "TRACK MY ORDER"`,
 
@@ -342,7 +342,7 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 - urgency_line: "Sale ends soon"`,
 
     'Win-back': `Win-back for inactive subscribers.
-- hero_headline: we missed you with {{ first_name | default: 'there' }}. Example: "We've missed you, {{ first_name | default: 'there' }}"
+- hero_headline: re-engagement, NO personalization tag, max 6 words. Example: "We've missed you"
 - pillars_heading: "WHAT'S NEW SINCE YOU LEFT"
 - pillars: ${pc} new things or improvements
 - cta_button: "SEE WHAT'S NEW"`,
@@ -382,6 +382,7 @@ GLOBAL RULES:
 - Klaviyo variable {{ first_name | default: 'there' }} — use ONLY where instructions say to. Write it exactly as shown.
 - If instructions mention pillars, include pillars_heading (string) and pillars (array of {title, body}).
 - CRITICAL: If instructions say "pillars: N objects", you MUST return EXACTLY N pillar objects. Not fewer. Not more. Exactly N.
+- CRITICAL: hero_headline must NEVER contain {{ first_name | default: 'there' }} or any Klaviyo personalization tag. The template handles personalization separately above the headline. Keep hero_headline short, clean, and direct.
 
 Return this exact JSON (include all fields, use empty string or empty array if not applicable):
 {
