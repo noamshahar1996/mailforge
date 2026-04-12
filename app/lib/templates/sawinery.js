@@ -158,9 +158,13 @@ export function renderEditorialTemplate({
   </table>
   ` : ''}
 
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-    <tr><td bgcolor="${headerBg}" style="padding:21px 72px;border-radius:3px;box-shadow:0 6px 20px rgba(0,0,0,0.22);">
-      <a href="#" style="font-family:${bf};font-size:11px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3px;color:#ffffff;">${c.cta_button || 'SHOP NOW'}</a>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr><td style="text-align:center;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+        <tr><td bgcolor="${headerBg}" style="padding:21px 72px;border-radius:3px;box-shadow:0 6px 20px rgba(0,0,0,0.22);">
+          <a href="#" style="font-family:${bf};font-size:11px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3px;color:#ffffff;">${c.cta_button || 'SHOP NOW'}</a>
+        </td></tr>
+      </table>
     </td></tr>
   </table>
 
