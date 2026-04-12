@@ -145,7 +145,17 @@ export function renderEditorialTemplate({
   ${c.hero_subline ? `<p style="font-family:${bf};font-size:16px;font-weight:400;color:rgba(0,0,0,0.5);margin:0 0 44px;line-height:1.5;">${c.hero_subline}</p>` : ''}
 
   ${isWelcome && offer ? `
-  <p style="font-family:${bf};font-size:16px;font-weight:400;color:rgba(0,0,0,0.6);margin:0 0 36px;line-height:1.5;">Use code <span style="font-weight:800;color:#0a0a0a;letter-spacing:1px;">${offer.toUpperCase()}</span> at checkout</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 36px;">
+    <tr><td style="text-align:center;padding:0;">
+      <p style="font-family:${bf};font-size:9px;font-weight:600;letter-spacing:5px;text-transform:uppercase;color:rgba(0,0,0,0.3);margin:0 0 14px;">Your exclusive welcome gift</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+        <tr><td style="border:1px solid rgba(0,0,0,0.15);padding:16px 48px;">
+          <span style="font-family:${bf};font-size:20px;font-weight:700;letter-spacing:8px;text-transform:uppercase;color:#111111;">${offer.toUpperCase()}</span>
+        </td></tr>
+      </table>
+      <p style="font-family:${bf};font-size:9px;font-weight:400;letter-spacing:3px;text-transform:uppercase;color:rgba(0,0,0,0.3);margin:14px 0 0;">Apply at checkout &nbsp;·&nbsp; Expires in 48 hours</p>
+    </td></tr>
+  </table>
   ` : ''}
 
   <table role="presentation" cellpadding="0" cellspacing="0" border="0">
