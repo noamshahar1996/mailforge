@@ -141,7 +141,8 @@ export function renderEditorialTemplate({
 <tr><td bgcolor="${lightBg}" style="padding:72px 56px 56px 64px;text-align:left;">
 
   <p style="font-family:${bf};font-size:13px;font-weight:400;color:rgba(0,0,0,0.45);margin:0 0 16px;letter-spacing:0.3px;">Welcome, {{ first_name | default: 'there' }}</p>
-  <div style="font-family:${df};font-size:50px;font-weight:800;color:#0a0a0a;line-height:0.92;letter-spacing:-2.5px;margin-bottom:48px;">${c.hero_headline || ''}</div>
+  <div style="font-family:${df};font-size:50px;font-weight:800;color:#0a0a0a;line-height:0.92;letter-spacing:-2.5px;margin-bottom:${c.hero_subline ? '20px' : '48px'};">${c.hero_headline || ''}</div>
+  ${c.hero_subline ? `<p style="font-family:${bf};font-size:16px;font-weight:400;color:rgba(0,0,0,0.5);margin:0 0 44px;line-height:1.5;">${c.hero_subline}</p>` : ''}
 
   ${isWelcome && offer ? `
   <p style="font-family:${bf};font-size:14px;font-weight:400;color:rgba(0,0,0,0.5);margin:0 0 6px;">Use code at checkout</p>
