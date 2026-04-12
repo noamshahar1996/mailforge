@@ -13,14 +13,17 @@
  */
 
 import { renderEditorialTemplate } from './sawinery.js'
+import { renderProductShowcaseTemplate } from './template2.js'
 
 const TEMPLATES = [
   {
     id: 'editorial_pillar',
     render: renderEditorialTemplate,
   },
-  // Add more here as they are built and tested:
-  // { id: 'bold_campaign', render: renderBoldCampaignTemplate },
+  {
+    id: 'product_showcase',
+    render: renderProductShowcaseTemplate,
+  },
 ]
 
 /**
