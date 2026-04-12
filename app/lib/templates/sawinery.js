@@ -97,18 +97,24 @@ export function renderEditorialTemplate({
   const bf = `'${font.body}',Arial,Helvetica,sans-serif`
 
   // ── 1. HEADER ────────────────────────────────────────────────────────────────
+  // Header uses primary only when it's dark (good contrast for logo).
+  // When primary is light (yellow, beige, white), use #111111 to keep logo visible.
+  const headerBg = isDark(primary) ? primary : '#111111'
+  const headerText = '#ffffff'
+
   const logoContent = d.logoUrl
     ? `<img src="${d.logoUrl}" height="56" style="display:block;height:56px;width:auto;margin:0 auto;border:0;" alt="${d.brandName}">`
-    : `<span style="font-family:${bf};font-size:11px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${primaryText};opacity:0.9;">${d.brandName.toUpperCase()}</span>`
+    : `<span style="font-family:${bf};font-size:11px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${headerText};opacity:0.85;">${d.brandName.toUpperCase()}</span>`
 
   const header = `
-<tr><td bgcolor="${primary}" style="padding:40px 40px 36px;text-align:center;">
+<tr><td bgcolor="${headerBg}" style="padding:40px 40px 36px;text-align:center;">
   ${logoContent}
 </td></tr>`
 
   // ── 2. NAV BAR — only if real links exist ────────────────────────────────────
+  // Nav uses headerBg (safe dark) for first cell, not raw primary
   const navColors = [
-    { bg: primary,    color: primaryText },
+    { bg: headerBg,   color: '#ffffff'   },
     { bg: accent,     color: accentText  },
     { bg: darkAccent, color: '#ffffff'   },
   ]
@@ -138,12 +144,13 @@ export function renderEditorialTemplate({
   <div style="font-family:${df};font-size:50px;font-weight:800;color:#0a0a0a;line-height:0.92;letter-spacing:-2.5px;margin-bottom:48px;">${c.hero_headline || ''}</div>
 
   ${isWelcome && offer ? `
-  <p style="font-family:${bf};font-size:15px;font-weight:400;color:rgba(0,0,0,0.55);margin:0 0 36px;line-height:1.4;">Use code <span style="font-size:20px;font-weight:800;color:#0a0a0a;letter-spacing:1.5px;">${offer.toUpperCase()}</span> at checkout</p>
+  <p style="font-family:${bf};font-size:14px;font-weight:400;color:rgba(0,0,0,0.5);margin:0 0 6px;">Use code at checkout</p>
+  <p style="font-family:${bf};font-size:24px;font-weight:800;color:#0a0a0a;letter-spacing:2px;margin:0 0 36px;line-height:1;">${offer.toUpperCase()}</p>
   ` : ''}
 
   <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-    <tr><td bgcolor="${primary}" style="padding:21px 72px;border-radius:3px;box-shadow:0 6px 20px rgba(0,0,0,0.22);">
-      <a href="#" style="font-family:${bf};font-size:11px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3px;color:${primaryText};">${c.cta_button || 'SHOP NOW'}</a>
+    <tr><td bgcolor="${headerBg}" style="padding:21px 72px;border-radius:3px;box-shadow:0 6px 20px rgba(0,0,0,0.22);">
+      <a href="#" style="font-family:${bf};font-size:11px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3px;color:#ffffff;">${c.cta_button || 'SHOP NOW'}</a>
     </td></tr>
   </table>
 
@@ -276,29 +283,34 @@ export function renderEditorialTemplate({
   const footerNav = footerNavLinks.length > 0 ? `
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="padding:0 80px;">
     ${footerNavLinks.map(link => `
-    <tr><td style="border-top:1px solid rgba(255,255,255,0.1);padding:22px 0;text-align:center;">
+    <tr><td style="border-top:1px solid rgba(255,255,255,0.08);padding:22px 0;text-align:center;">
       <a href="#" style="font-family:${bf};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:4px;color:rgba(255,255,255,0.75);text-decoration:none;">${link.toUpperCase()}</a>
     </td></tr>`).join('')}
-    <tr><td style="border-top:1px solid rgba(255,255,255,0.1);padding:0;font-size:0;line-height:0;">&nbsp;</td></tr>
+    <tr><td style="border-top:1px solid rgba(255,255,255,0.08);padding:0;font-size:0;line-height:0;">&nbsp;</td></tr>
   </table>` : ''
 
   const footerLogoContent = d.logoUrl
-    ? `<img src="${d.logoUrl}" height="40" style="display:block;height:40px;width:auto;margin:0 auto 14px;border:0;opacity:0.55;" alt="${d.brandName}">`
-    : `<span style="font-family:${bf};font-size:10px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:rgba(255,255,255,0.5);">${d.brandName.toUpperCase()}</span>`
+    ? `<img src="${d.logoUrl}" height="40" style="display:block;height:40px;width:auto;margin:0 auto 14px;border:0;opacity:0.85;" alt="${d.brandName}">`
+    : `<span style="font-family:${bf};font-size:10px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${accent};">${d.brandName.toUpperCase()}</span>`
+
+  // Footer always uses a fixed dark background — never brand primary.
+  // Brand primary can be any color (yellow, beige, white) — using it in the footer
+  // causes invisible text and logos. Dark background guarantees readability.
+  const footerBg = '#111111'
 
   const footer = `
-<tr><td bgcolor="${primary}" style="padding:20px 0 0;">
+<tr><td bgcolor="${footerBg}" style="padding:20px 0 0;">
   ${footerNav}
 </td></tr>
-<tr><td bgcolor="${primary}" style="padding:40px 48px 20px;text-align:center;">
+<tr><td bgcolor="${footerBg}" style="padding:40px 48px 20px;text-align:center;">
   ${footerLogoContent}
-  ${d.tagline ? `<p style="font-family:${bf};font-size:13px;font-weight:400;line-height:1.65;color:rgba(255,255,255,0.45);margin:10px 0 0;">${d.tagline}</p>` : ''}
+  ${d.tagline ? `<p style="font-family:${bf};font-size:13px;font-weight:400;line-height:1.65;color:rgba(255,255,255,0.5);margin:10px 0 0;">${d.tagline}</p>` : ''}
 </td></tr>
-<tr><td bgcolor="${primary}" style="padding:20px 48px 40px;text-align:center;">
-  <p style="font-family:${bf};font-size:10px;color:rgba(255,255,255,0.22);margin:0;line-height:2;letter-spacing:0.5px;">
-    <a href="{{ unsubscribe_url }}" style="color:rgba(255,255,255,0.28);text-decoration:underline;">Unsubscribe</a>
+<tr><td bgcolor="${footerBg}" style="padding:20px 48px 40px;text-align:center;">
+  <p style="font-family:${bf};font-size:10px;color:rgba(255,255,255,0.3);margin:0;line-height:2;letter-spacing:0.5px;">
+    <a href="{{ unsubscribe_url }}" style="color:rgba(255,255,255,0.4);text-decoration:underline;">Unsubscribe</a>
     &nbsp;&nbsp;·&nbsp;&nbsp;
-    <a href="{{ manage_preferences_url }}" style="color:rgba(255,255,255,0.28);text-decoration:underline;">Manage preferences</a>
+    <a href="{{ manage_preferences_url }}" style="color:rgba(255,255,255,0.4);text-decoration:underline;">Manage preferences</a>
   </p>
 </td></tr>`
 
