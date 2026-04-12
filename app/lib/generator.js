@@ -190,10 +190,14 @@ function assemblePlainTextEmail({ brandData, copy }) {
 
 async function generateCopyWithClaude({ brandData, emailType, offer, productImages, isWelcome, flowType, anthropic }) {
 
-  const topProductNames = (productImages || [])
-    .filter(img => img.alt && img.alt.trim().length > 2)
-    .slice(0, 3)
-    .map(img => img.alt.trim())
+  const validImages = (productImages || []).filter(img => img && (img.src || img.alt))
+  const pillarCount = validImages.length
+  const pc = pillarCount // shorthand used in role instructions below
+
+  const topProductNames = validImages
+    .slice(0, pillarCount)
+    .map(img => (img.alt || img.name || '').trim())
+    .filter(Boolean)
 
   const roleInstructions = {
     'discount_delivery': `Email 1 of welcome flow. Deliver discount code immediately.
@@ -201,14 +205,14 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 - story_p1: one sentence about the brand promise
 - story_p2: one sentence about what makes them different
 - pillars_heading: "WHY WOODWORKERS CHOOSE US" (brand-relevant equivalent)
-- pillars: 3 objects — title (USP name) + body (1-2 sentences). Use: ${(brandData.keySellingPoints || []).join(', ')}
+- pillars: ${pc} objects — title (USP name) + body (1-2 sentences). Use: ${(brandData.keySellingPoints || []).join(', ')}
 - cta_button: "SHOP NOW & SAVE"`,
 
     'education': `Email 2 of welcome flow. Educate about the product. No discount.
 - hero_headline: product benefit hook, max 6 words
 - story_p1 + story_p2: how the product works and why it's different
 - pillars_heading: "THE KEY BENEFITS" (brand-relevant)
-- pillars: 3 objects — title + body using: ${(brandData.productNames || []).join(', ')}
+- pillars: ${pc} objects — title + body using: ${(brandData.productNames || []).join(', ')}
 - cta_button: "SHOP NOW"`,
 
     'urgency': `Email 4 of welcome flow. Last chance. Urgency.
@@ -227,14 +231,14 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 - hero_headline: about using the product, max 6 words
 - story_p1: intro paragraph
 - pillars_heading: "HOW TO GET STARTED"
-- pillars: 3 step-by-step tips for ${(brandData.productNames || [])[0] || brandData.productType}
+- pillars: ${pc} step-by-step tips for ${(brandData.productNames || [])[0] || brandData.productType}
 - cta_button: "VISIT OUR BLOG"`,
 
     'social_proof': `Social proof email. Reviews and complementary products.
 - hero_headline: social proof hook, max 6 words
 - story_p1: what customers are saying
 - pillars_heading: "WHAT CUSTOMERS LOVE"
-- pillars: 3 customer benefit stories
+- pillars: ${pc} customer benefit stories
 - cta_button: "SHOP MORE"`,
 
     'remind': `Abandoned cart reminder. No discount. Direct.
@@ -246,7 +250,7 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
     'build_trust': `Abandoned cart — remove doubt. No discount.
 - hero_headline: trust-building, max 6 words
 - pillars_heading: "WHY CUSTOMERS TRUST US"
-- pillars: 3 trust reasons using: ${(brandData.keySellingPoints || []).join(', ')}
+- pillars: ${pc} trust reasons using: ${(brandData.keySellingPoints || []).join(', ')}
 - cta_button: "COMPLETE MY ORDER"`,
 
     'push': `Abandoned cart — final push. Reveal discount if exists.
@@ -263,7 +267,7 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
     'browse_desire': `Browse abandon — build desire. No discount.
 - hero_headline: desire-building, max 6 words
 - pillars_heading: "WHAT CUSTOMERS SAY"
-- pillars: 3 customer benefit stories
+- pillars: ${pc} customer benefit stories
 - cta_button: "SHOP NOW"`,
 
     'browse_push': `Browse abandon — final push.
@@ -281,7 +285,7 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
     'checkout_trust': `Checkout abandon — remove final objections.
 - hero_headline: trust and security, max 6 words
 - pillars_heading: "YOUR ORDER IS PROTECTED"
-- pillars: 3 items — guarantee, returns, secure payment
+- pillars: ${pc} items — guarantee, returns, secure payment
 - cta_button: "COMPLETE MY ORDER"`,
 
     'checkout_push': `Checkout abandon — last chance.
@@ -298,20 +302,20 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
     'sub_habit': `Subscription — build daily habit.
 - hero_headline: about building the habit, max 6 words
 - pillars_heading: "YOUR DAILY RITUAL"
-- pillars: 3 daily routine steps
+- pillars: ${pc} daily routine steps
 - cta_button: "LEARN MORE TIPS"`,
 
     'sub_expectations': `Subscription — set realistic expectations.
 - hero_headline: what they'll experience, max 6 words
 - pillars_heading: "WHAT TO EXPECT"
-- pillars: 3 milestones (week 1, month 1, month 3)
+- pillars: ${pc} milestones (week 1, month 1, month 3)
 - cta_button: "TRACK YOUR PROGRESS"`,
 
     'Welcome email': `Welcome email. Deliver discount.
 - hero_headline: personalized welcome with {{ first_name | default: 'there' }}. Example: "Welcome, {{ first_name | default: 'there' }} — here's your gift"
 - story_p1 + story_p2: brief brand intro with real USPs
 - pillars_heading: "WHY CUSTOMERS LOVE US"
-- pillars: 3 USPs from: ${(brandData.keySellingPoints || []).join(', ')}
+- pillars: ${pc} USPs from: ${(brandData.keySellingPoints || []).join(', ')}
 - cta_button: "SHOP NOW & SAVE"`,
 
     'Abandoned cart': `Abandoned cart. Mystery offer mechanic.
@@ -333,13 +337,13 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
     'Win-back': `Win-back for inactive subscribers.
 - hero_headline: we missed you with {{ first_name | default: 'there' }}. Example: "We've missed you, {{ first_name | default: 'there' }}"
 - pillars_heading: "WHAT'S NEW SINCE YOU LEFT"
-- pillars: 3 new things or improvements
+- pillars: ${pc} new things or improvements
 - cta_button: "SEE WHAT'S NEW"`,
 
     'Product launch': `Product launch announcement. No personalization.
 - hero_headline: announce new product, max 6 words
 - pillars_heading: "WHY THIS CHANGES EVERYTHING"
-- pillars: 3 key features or benefits
+- pillars: ${pc} key features or benefits
 - cta_button: "SHOP THE NEW COLLECTION"`,
   }
 
