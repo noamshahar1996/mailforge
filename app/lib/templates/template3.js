@@ -80,18 +80,16 @@ export function renderCampaignTemplate({
   // If hero image exists: full-bleed image with dark gradient overlay + headline on top.
   // If no image: strong accent-colored headline block.
 
+  // Hero: image stacked above text — no absolute positioning (email-safe)
   const hero = d.heroImageUrl ? `
-<tr><td style="padding:0;font-size:0;line-height:0;position:relative;">
-  <div style="position:relative;overflow:hidden;">
-    <img src="${d.heroImageUrl}" width="600" style="display:block;width:100%;height:auto;border:0;" alt="${d.brandName}">
-    <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(to bottom,rgba(0,0,0,0.18) 0%,rgba(0,0,0,0.72) 100%);pointer-events:none;"></div>
-    <div style="position:absolute;bottom:0;left:0;right:0;padding:40px 48px 44px;">
-      ${c.hero_headline ? `<h1 style="font-family:${df};font-size:44px;font-weight:800;color:#ffffff;line-height:1.0;letter-spacing:-1.5px;margin:0 0 ${c.hero_subline ? '12px' : '0'};">${c.hero_headline}</h1>` : ''}
-      ${c.hero_subline ? `<p style="font-family:${bf};font-size:16px;font-weight:400;color:rgba(255,255,255,0.8);margin:0;line-height:1.5;">${c.hero_subline}</p>` : ''}
-    </div>
-  </div>
+<tr><td style="padding:0;font-size:0;line-height:0;">
+  <img src="${d.heroImageUrl}" width="600" style="display:block;width:100%;height:auto;border:0;" alt="${d.brandName}">
+</td></tr>
+<tr><td bgcolor="${headerBg}" style="padding:40px 48px 44px;text-align:left;">
+  ${c.hero_headline ? `<h1 style="font-family:${df};font-size:44px;font-weight:800;color:#ffffff;line-height:1.0;letter-spacing:-1.5px;margin:0 0 ${c.hero_subline ? '14px' : '0'};">${c.hero_headline}</h1>` : ''}
+  ${c.hero_subline ? `<p style="font-family:${bf};font-size:16px;font-weight:400;color:rgba(255,255,255,0.65);margin:0;line-height:1.5;">${c.hero_subline}</p>` : ''}
 </td></tr>` : `
-<tr><td bgcolor="${headerBg}" style="padding:64px 48px;text-align:center;">
+<tr><td bgcolor="${headerBg}" style="padding:64px 48px;text-align:left;">
   ${c.hero_headline ? `<h1 style="font-family:${df};font-size:44px;font-weight:800;color:#ffffff;line-height:1.0;letter-spacing:-1.5px;margin:0 0 ${c.hero_subline ? '16px' : '0'};">${c.hero_headline}</h1>` : ''}
   ${c.hero_subline ? `<p style="font-family:${bf};font-size:16px;font-weight:400;color:rgba(255,255,255,0.65);margin:0;line-height:1.5;">${c.hero_subline}</p>` : ''}
 </td></tr>`
@@ -160,7 +158,11 @@ export function renderCampaignTemplate({
             <tr><td bgcolor="#ffffff" style="padding:18px 16px 20px;text-align:left;">
               <p style="font-family:${df};font-size:16px;font-weight:700;color:#111111;margin:0 0 8px;line-height:1.2;">${pillar.title}</p>
               <p style="font-family:${bf};font-size:13px;font-weight:400;color:#777777;line-height:1.6;margin:0 0 14px;">${pillar.body.slice(0, 80)}${pillar.body.length > 80 ? '...' : ''}</p>
-              <a href="#" style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:${darkAccent};text-decoration:none;border-bottom:1px solid ${darkAccent};padding-bottom:2px;">Shop Now</a>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr><td bgcolor="${headerBg}" style="padding:10px 24px;border-radius:3px;">
+                  <a href="#" style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#ffffff;text-decoration:none;">Shop Now</a>
+                </td></tr>
+              </table>
             </td></tr>
           </table>
         </td>`
@@ -183,8 +185,17 @@ export function renderCampaignTemplate({
         const sep = i < trustEntries.length - 1
           ? `<td style="width:1px;background:rgba(255,255,255,0.1);padding:0;font-size:0;">&nbsp;</td>`
           : ''
+        const labels = {
+          freeShipping: 'Free Shipping',
+          returns: 'Returns Policy',
+          reviews: 'Customer Reviews',
+          rating: 'Average Rating',
+          quality: 'Quality Promise',
+        }
+        const label = labels[key] || key
         return `<td style="text-align:center;padding:0 16px;vertical-align:middle;">
-          <p style="font-family:${bf};font-size:13px;font-weight:700;color:#ffffff;margin:0;letter-spacing:0.3px;">${val}</p>
+          <p style="font-family:${bf};font-size:9px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin:0 0 6px;">${label}</p>
+          <p style="font-family:${bf};font-size:14px;font-weight:700;color:#ffffff;margin:0;letter-spacing:0.3px;">${val}</p>
         </td>${sep}`
       }).join('')}
     </tr>
