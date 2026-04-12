@@ -14,6 +14,7 @@
 
 import { renderEditorialTemplate } from './sawinery.js'
 import { renderProductShowcaseTemplate } from './template2.js'
+import { renderCampaignTemplate } from './template3.js'
 
 const TEMPLATES = [
   {
@@ -23,6 +24,10 @@ const TEMPLATES = [
   {
     id: 'product_showcase',
     render: renderProductShowcaseTemplate,
+  },
+  {
+    id: 'campaign_promo',
+    render: renderCampaignTemplate,
   },
 ]
 
