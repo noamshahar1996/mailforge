@@ -134,10 +134,7 @@ export function renderEditorialTemplate({
   const heroBlock = `
 <tr><td bgcolor="${lightBg}" style="padding:72px 56px 56px 64px;text-align:left;">
 
-  <div style="font-family:${df};font-size:50px;font-weight:800;color:#0a0a0a;line-height:0.92;letter-spacing:-2.5px;margin-bottom:${line2 ? '16px' : '48px'};">${line1}</div>
-  ${line2 ? `<div style="display:inline-block;background:${accent};border-radius:3px;padding:10px 32px;margin-bottom:48px;">
-    <span style="font-family:${df};font-size:50px;font-weight:800;color:${accentText};letter-spacing:-2.5px;">${line2}</span>
-  </div><br>` : ''}
+  <div style="font-family:${df};font-size:50px;font-weight:800;color:#0a0a0a;line-height:0.92;letter-spacing:-2.5px;margin-bottom:48px;">${c.hero_headline || ''}</div>
 
   ${isWelcome && offer ? `
   <p style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:rgba(0,0,0,0.45);margin:0 0 10px;">Exclusive welcome offer</p>
