@@ -134,6 +134,7 @@ export function renderEditorialTemplate({
   const heroBlock = `
 <tr><td bgcolor="${lightBg}" style="padding:72px 56px 56px 64px;text-align:left;">
 
+  <p style="font-family:${bf};font-size:13px;font-weight:400;color:rgba(0,0,0,0.45);margin:0 0 16px;letter-spacing:0.3px;">Welcome, {{ first_name | default: 'there' }}</p>
   <div style="font-family:${df};font-size:50px;font-weight:800;color:#0a0a0a;line-height:0.92;letter-spacing:-2.5px;margin-bottom:48px;">${c.hero_headline || ''}</div>
 
   ${isWelcome && offer ? `
