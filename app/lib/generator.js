@@ -381,6 +381,7 @@ GLOBAL RULES:
 - Paragraphs max 2-3 sentences each.
 - Klaviyo variable {{ first_name | default: 'there' }} — use ONLY where instructions say to. Write it exactly as shown.
 - If instructions mention pillars, include pillars_heading (string) and pillars (array of {title, body}).
+- CRITICAL: If instructions say "pillars: N objects", you MUST return EXACTLY N pillar objects. Not fewer. Not more. Exactly N.
 
 Return this exact JSON (include all fields, use empty string or empty array if not applicable):
 {
@@ -409,14 +410,40 @@ Return this exact JSON (include all fields, use empty string or empty array if n
   })
 
   const raw = response.content[0].text.trim()
-  try { return JSON.parse(raw) } catch {}
-  try {
-    const cleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
-    return JSON.parse(cleaned)
-  } catch {}
-  try {
-    const start = raw.indexOf('{'), end = raw.lastIndexOf('}')
-    if (start !== -1 && end !== -1) return JSON.parse(raw.substring(start, end + 1))
-  } catch {}
-  throw new Error('Could not parse copy output. Please try again.')
+
+  let parsed
+  try { parsed = JSON.parse(raw) } catch {}
+  if (!parsed) {
+    try {
+      const cleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
+      parsed = JSON.parse(cleaned)
+    } catch {}
+  }
+  if (!parsed) {
+    try {
+      const start = raw.indexOf('{'), end = raw.lastIndexOf('}')
+      if (start !== -1 && end !== -1) parsed = JSON.parse(raw.substring(start, end + 1))
+    } catch {}
+  }
+  if (!parsed) throw new Error('Could not parse copy output. Please try again.')
+
+  // ── ENFORCE PILLAR COUNT ────────────────────────────────────────────────────
+  // Claude doesn't always return exactly pc pillars — LLMs default to 3.
+  // We enforce the count here so the template always gets exactly what it needs.
+  if (pillarCount > 0) {
+    const currentPillars = Array.isArray(parsed.pillars) ? parsed.pillars : []
+
+    if (currentPillars.length < pillarCount) {
+      // Too few: pad with copies of the last pillar (slightly varied titles)
+      const last = currentPillars[currentPillars.length - 1] || { title: 'Our Promise', body: 'Quality you can count on.' }
+      while (currentPillars.length < pillarCount) {
+        currentPillars.push({ title: last.title, body: last.body })
+      }
+    }
+
+    // Too many: trim to exact count
+    parsed.pillars = currentPillars.slice(0, pillarCount)
+  }
+
+  return parsed
 }
