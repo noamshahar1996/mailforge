@@ -179,7 +179,9 @@ export function renderEditorialTemplate({
   // ── 7. PILLARS ────────────────────────────────────────────────────────────────
   // Text-only if no product image — never hidden because of missing image.
   // Hidden only if pillars array is empty.
-  const pillarsHeading = c.pillars_heading && c.pillars.length > 0 ? `
+  const pillarCount = Math.min(c.pillars.length, d.productImages.length)
+
+  const pillarsHeading = c.pillars_heading && pillarCount > 0 ? `
 <tr><td bgcolor="${lightBg}" style="padding:0 64px;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr><td style="height:1px;background:rgba(0,0,0,0.06);font-size:0;line-height:0;">&nbsp;</td></tr>
@@ -190,7 +192,7 @@ export function renderEditorialTemplate({
   <h2 style="font-family:${df};font-size:36px;font-weight:800;text-transform:uppercase;color:#111111;margin:0;line-height:1.0;letter-spacing:-0.5px;">${c.pillars_heading}</h2>
 </td></tr>` : ''
 
-  const pillarRows = c.pillars.map((pillar, i) => {
+  const pillarRows = c.pillars.slice(0, pillarCount).map((pillar, i) => {
     const isLeft     = i % 2 === 0
     const img        = d.productImages[i] || null
     const numCircle = `<div style="width:64px;height:64px;border-radius:50%;background:${darkAccent};display:inline-flex;align-items:center;justify-content:center;font-family:${bf};font-size:20px;font-weight:700;color:#ffffff;line-height:1;">${i + 1}</div>`
