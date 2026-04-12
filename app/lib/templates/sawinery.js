@@ -136,7 +136,6 @@ export function renderEditorialTemplate({
 
   const heroHeadline = `
 <tr><td bgcolor="${lightBg}" style="padding:60px 48px 24px;text-align:center;">
-  <p style="font-family:${bf};font-size:10px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${darkenColor(accent, 0.4)};margin:0 0 20px;">${d.brandName.toUpperCase()}</p>
   <div style="font-family:${df};font-size:44px;font-weight:800;color:#111111;line-height:1.0;letter-spacing:-1.5px;margin-bottom:${line2 ? '16px' : '0'};">${line1}</div>
   ${line2 ? `<div style="display:inline-block;background:${accent};border-radius:6px;padding:8px 28px;margin-top:4px;">
     <span style="font-family:${df};font-size:44px;font-weight:800;color:${accentText};letter-spacing:-1.5px;">${line2}</span>
