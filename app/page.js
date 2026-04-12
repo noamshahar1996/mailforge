@@ -586,7 +586,7 @@ export default function MailForge() {
                               <button style={{ ...s.btnSecondary, fontSize: 11, padding: '5px 10px' }} onClick={() => downloadHtml(currentEmail.html, `${brand?.brandName}-email-${activeEmailIndex + 1}.html`)}>Download</button>
                             </div>
                           </div>
-                          <iframe srcDoc={currentEmail.html} style={{ width: '100%', height: 600, border: 'none', background: '#fff', display: 'block' }} sandbox="allow-same-origin" />
+                          <iframe srcDoc={currentEmail.html} style={{ width: '100%', height: 1200, border: 'none', background: '#fff', display: 'block' }} sandbox="allow-same-origin" />
                         </div>
                       )}
 
@@ -653,7 +653,7 @@ export default function MailForge() {
                           <button style={{ ...s.btnSecondary, fontSize: 11, padding: '5px 10px' }} onClick={reset}>Start over</button>
                         </div>
                       </div>
-                      <iframe srcDoc={result.html} style={{ width: '100%', height: 600, border: 'none', background: '#fff', display: 'block' }} sandbox="allow-same-origin" />
+                      <iframe srcDoc={result.html} style={{ width: '100%', height: 1200, border: 'none', background: '#fff', display: 'block' }} sandbox="allow-same-origin" />
                     </div>
                   )}
 
