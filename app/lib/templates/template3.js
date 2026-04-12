@@ -193,18 +193,51 @@ ${divider}
   const trustEntries = Object.entries(d.trustSignals || {}).filter(([, v]) => v)
   const bannerImage = d.productImages.length > 1 ? d.productImages[1] : null
 
-  const socialProof = trustEntries.length > 0 ? `
+  // Real scraped reviews: use bestTestimonialQuote + additional testimonials from brandData
+  // These come directly from the website scraper — no invented content
+  const bestQuote     = brandData.bestTestimonialQuote || null
+  const rawTestimonials = (brandData.testimonials || []).filter(t => t && t.trim().length > 20)
+
+  // Build review cards: best quote first, then up to 2 more scraped testimonials
+  // Only renders if we have at least one real review
+  const reviewCards = []
+  if (bestQuote) reviewCards.push({ name: c.testimonial_name || 'Verified customer', text: bestQuote })
+  rawTestimonials.slice(0, 2).forEach((t, i) => {
+    if (!bestQuote || t !== bestQuote) reviewCards.push({ name: 'Verified customer', text: t.slice(0, 160) })
+  })
+
+  const hasProof = trustEntries.length > 0 || reviewCards.length > 0
+
+  const socialProof = hasProof ? `
 ${divider}
 <tr><td bgcolor="${pageBg}" style="padding:44px 40px 28px;text-align:center;">
   <h2 style="font-family:${df};font-size:42px;font-weight:800;color:${brand};line-height:1.0;letter-spacing:-0.5px;margin:0 0 32px;text-transform:uppercase;">What Others Say</h2>
   ${bannerImage ? `<img src="${bannerImage.src}" width="520" style="display:block;width:100%;max-width:520px;height:auto;margin:0 auto 36px;border:0;border-radius:8px;" alt="products">` : ''}
-  ${trustEntries.map(([key, val]) => `
+
+  ${reviewCards.map(r => `
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:32px;">
     <tr><td style="text-align:center;padding:0 32px;">
-      <p style="font-family:${bf};font-size:17px;font-weight:800;color:#111111;margin:0 0 8px;">${val}</p>
+      <p style="font-family:${bf};font-size:16px;font-weight:800;color:#111111;margin:0 0 10px;">${r.name}</p>
+      <p style="font-family:${bf};font-size:15px;font-weight:400;color:#555555;line-height:1.7;margin:0 0 10px;">${r.text}</p>
       <p style="color:#f5a623;font-size:20px;letter-spacing:4px;margin:0;line-height:1;">&#9733;&#9733;&#9733;&#9733;&#9733;</p>
     </td></tr>
   </table>`).join('')}
+
+  ${trustEntries.length > 0 ? `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:12px;">
+    <tr>
+      ${trustEntries.map(([key, val], i) => {
+        const sep = i < trustEntries.length - 1
+          ? `<td style="width:1px;background:rgba(0,0,0,0.08);padding:0;font-size:0;">&nbsp;</td>`
+          : ''
+        return `<td style="text-align:center;padding:16px 12px;vertical-align:middle;">
+          <p style="font-family:${bf};font-size:13px;font-weight:700;color:#111111;margin:0 0 4px;">${val}</p>
+          <p style="color:#f5a623;font-size:14px;letter-spacing:2px;margin:0;line-height:1;">&#9733;&#9733;&#9733;&#9733;&#9733;</p>
+        </td>${sep}`
+      }).join('')}
+    </tr>
+  </table>` : ''}
+
 </td></tr>
 <tr><td bgcolor="${pageBg}" style="padding-bottom:40px;font-size:0;line-height:0;">&nbsp;</td></tr>` : ''
 
