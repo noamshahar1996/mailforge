@@ -85,43 +85,44 @@ export function renderCampaignTemplate({
 <tr><td style="padding:0;font-size:0;line-height:0;">
   <img src="${d.heroImageUrl}" width="600" style="display:block;width:100%;height:auto;border:0;" alt="${d.brandName}">
 </td></tr>
-<tr><td bgcolor="${headerBg}" style="padding:40px 48px 44px;text-align:left;">
-  ${c.hero_headline ? `<h1 style="font-family:${df};font-size:44px;font-weight:800;color:#ffffff;line-height:1.0;letter-spacing:-1.5px;margin:0 0 ${c.hero_subline ? '14px' : '0'};">${c.hero_headline}</h1>` : ''}
-  ${c.hero_subline ? `<p style="font-family:${bf};font-size:16px;font-weight:400;color:rgba(255,255,255,0.65);margin:0;line-height:1.5;">${c.hero_subline}</p>` : ''}
+<tr><td bgcolor="${headerBg}" style="padding:48px 52px 52px;text-align:left;">
+  ${c.hero_headline ? `<h1 style="font-family:${df};font-size:50px;font-weight:800;color:#ffffff;line-height:0.95;letter-spacing:-2px;margin:0 0 ${c.hero_subline ? '18px' : '0'};">${c.hero_headline}</h1>` : ''}
+  ${c.hero_subline ? `<p style="font-family:${bf};font-size:17px;font-weight:400;color:rgba(255,255,255,0.7);margin:0;line-height:1.6;">${c.hero_subline}</p>` : ''}
 </td></tr>` : `
-<tr><td bgcolor="${headerBg}" style="padding:64px 48px;text-align:left;">
-  ${c.hero_headline ? `<h1 style="font-family:${df};font-size:44px;font-weight:800;color:#ffffff;line-height:1.0;letter-spacing:-1.5px;margin:0 0 ${c.hero_subline ? '16px' : '0'};">${c.hero_headline}</h1>` : ''}
-  ${c.hero_subline ? `<p style="font-family:${bf};font-size:16px;font-weight:400;color:rgba(255,255,255,0.65);margin:0;line-height:1.5;">${c.hero_subline}</p>` : ''}
+<tr><td bgcolor="${headerBg}" style="padding:72px 52px;text-align:left;">
+  ${c.hero_headline ? `<h1 style="font-family:${df};font-size:50px;font-weight:800;color:#ffffff;line-height:0.95;letter-spacing:-2px;margin:0 0 ${c.hero_subline ? '18px' : '0'};">${c.hero_headline}</h1>` : ''}
+  ${c.hero_subline ? `<p style="font-family:${bf};font-size:17px;font-weight:400;color:rgba(255,255,255,0.7);margin:0;line-height:1.6;">${c.hero_subline}</p>` : ''}
 </td></tr>`
 
   // ── 2. INTRO ──────────────────────────────────────────────────────────────────
   // Greeting line + story paragraph. Renders only if story_p1 exists.
 
   const intro = c.story_p1 ? `
-<tr><td bgcolor="#ffffff" style="padding:52px 56px 44px;">
-  <p style="font-family:${bf};font-size:13px;font-weight:600;letter-spacing:4px;text-transform:uppercase;color:${darkAccent};margin:0 0 20px;">Welcome, {{ first_name | default: 'there' }}</p>
-  <p style="font-family:${bf};font-size:17px;font-weight:400;line-height:1.85;color:#333333;margin:0 0 ${c.story_p2 ? '18px' : '0'};">${c.story_p1}</p>
-  ${c.story_p2 ? `<p style="font-family:${bf};font-size:17px;font-weight:400;line-height:1.85;color:#333333;margin:0;">${c.story_p2}</p>` : ''}
-</td></tr>` : ''
+<tr><td bgcolor="#ffffff" style="padding:56px 56px 52px;">
+  <p style="font-family:${bf};font-size:10px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${darkAccent};margin:0 0 24px;">Welcome, {{ first_name | default: 'there' }}</p>
+  <p style="font-family:${bf};font-size:18px;font-weight:400;line-height:1.9;color:#2a2a2a;margin:0 0 ${c.story_p2 ? '20px' : '0'};">${c.story_p1}</p>
+  ${c.story_p2 ? `<p style="font-family:${bf};font-size:18px;font-weight:400;line-height:1.9;color:#2a2a2a;margin:0;">${c.story_p2}</p>` : ''}
+</td></tr>
+<tr><td bgcolor="rgba(0,0,0,0.06)" style="height:1px;font-size:0;line-height:0;">&nbsp;</td></tr>` : ''
 
   // ── 3. OFFER BLOCK ────────────────────────────────────────────────────────────
   // Full-width accent-colored band with discount code + CTA.
   // Renders only if offer exists.
 
   const offerBlock = offer ? `
-<tr><td bgcolor="${accent}" style="padding:48px 56px;text-align:center;">
-  <p style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${isDark(accent) ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'};margin:0 0 16px;">Your exclusive code</p>
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin-bottom:28px;">
-    <tr><td style="border:1px solid ${isDark(accent) ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'};padding:16px 52px;">
-      <span style="font-family:${bf};font-size:22px;font-weight:800;letter-spacing:8px;text-transform:uppercase;color:${accentText};">${offer.toUpperCase()}</span>
+<tr><td bgcolor="${accent}" style="padding:56px 56px 52px;text-align:center;">
+  <p style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${isDark(accent) ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.35)'};margin:0 0 18px;">Your exclusive code</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin-bottom:32px;">
+    <tr><td style="border:1px solid ${isDark(accent) ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.2)'};padding:20px 60px;">
+      <span style="font-family:${bf};font-size:26px;font-weight:800;letter-spacing:10px;text-transform:uppercase;color:${accentText};">${offer.toUpperCase()}</span>
     </td></tr>
   </table>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
-    <tr><td bgcolor="${headerBg}" style="padding:18px 60px;border-radius:3px;">
-      <a href="#" style="font-family:${bf};font-size:11px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3px;color:#ffffff;">${c.cta_button || 'SHOP NOW'}</a>
+    <tr><td bgcolor="${headerBg}" style="padding:20px 72px;border-radius:3px;box-shadow:0 4px 16px rgba(0,0,0,0.2);">
+      <a href="#" style="font-family:${bf};font-size:12px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3px;color:#ffffff;">${c.cta_button || 'SHOP NOW'}</a>
     </td></tr>
   </table>
-  <p style="font-family:${bf};font-size:10px;color:${isDark(accent) ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)'};margin:16px 0 0;letter-spacing:2px;text-transform:uppercase;">Apply at checkout &nbsp;·&nbsp; Expires in 48 hours</p>
+  <p style="font-family:${bf};font-size:10px;color:${isDark(accent) ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.28)'};margin:20px 0 0;letter-spacing:2px;text-transform:uppercase;">Apply at checkout &nbsp;·&nbsp; Expires in 48 hours</p>
 </td></tr>` : ''
 
   // If no offer but CTA is needed (non-welcome emails)
@@ -142,24 +143,25 @@ export function renderCampaignTemplate({
   const gridPillars = c.pillars.slice(0, 2)
 
   const productGrid = gridPillars.length > 0 ? `
-<tr><td bgcolor="#ffffff" style="padding:52px 32px 16px;text-align:center;">
-  <p style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${darkAccent};margin:0 0 8px;">${c.product_label || 'Selected for you'}</p>
-  <h2 style="font-family:${df};font-size:28px;font-weight:800;color:#111111;margin:0 0 36px;line-height:1.15;letter-spacing:-0.3px;">${c.product_headline || c.pillars_heading || ''}</h2>
+<tr><td bgcolor="rgba(0,0,0,0.04)" style="height:1px;font-size:0;line-height:0;">&nbsp;</td></tr>
+<tr><td bgcolor="#f7f7f5" style="padding:56px 32px 20px;text-align:center;">
+  <p style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:${darkAccent};margin:0 0 10px;">${c.product_label || 'Selected for you'}</p>
+  <h2 style="font-family:${df};font-size:32px;font-weight:800;color:#111111;margin:0 0 40px;line-height:1.1;letter-spacing:-0.5px;">${c.product_headline || c.pillars_heading || ''}</h2>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
       ${gridPillars.map((pillar, i) => {
         const img = d.productImages[i] || null
         const isLast = i === gridPillars.length - 1
-        return `<td width="${Math.floor(100 / gridPillars.length)}%" style="vertical-align:top;padding:0 ${isLast ? '0' : '8px'} 0 ${i === 0 ? '0' : '8px'};">
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid rgba(0,0,0,0.07);border-radius:8px;overflow:hidden;">
-            ${img ? `<tr><td bgcolor="#f7f7f5" style="padding:24px;text-align:center;">
+        return `<td width="${Math.floor(100 / gridPillars.length)}%" style="vertical-align:top;padding:0 ${isLast ? '0' : '10px'} 0 ${i === 0 ? '0' : '10px'};">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid rgba(0,0,0,0.08);border-radius:10px;overflow:hidden;">
+            ${img ? `<tr><td bgcolor="#efefed" style="padding:28px;text-align:center;">
               <img src="${img.src}" width="200" style="display:block;width:100%;max-width:200px;height:auto;margin:0 auto;border:0;" alt="${img.name}">
             </td></tr>` : ''}
-            <tr><td bgcolor="#ffffff" style="padding:18px 16px 20px;text-align:left;">
-              <p style="font-family:${df};font-size:16px;font-weight:700;color:#111111;margin:0 0 8px;line-height:1.2;">${pillar.title}</p>
-              <p style="font-family:${bf};font-size:13px;font-weight:400;color:#777777;line-height:1.6;margin:0 0 14px;">${pillar.body.slice(0, 80)}${pillar.body.length > 80 ? '...' : ''}</p>
+            <tr><td bgcolor="#ffffff" style="padding:20px 18px 24px;text-align:left;">
+              <p style="font-family:${df};font-size:17px;font-weight:800;color:#111111;margin:0 0 8px;line-height:1.2;">${pillar.title}</p>
+              <p style="font-family:${bf};font-size:13px;font-weight:400;color:#666666;line-height:1.65;margin:0 0 18px;">${pillar.body.slice(0, 80)}${pillar.body.length > 80 ? '...' : ''}</p>
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                <tr><td bgcolor="${headerBg}" style="padding:10px 24px;border-radius:3px;">
+                <tr><td bgcolor="${headerBg}" style="padding:12px 28px;border-radius:3px;">
                   <a href="#" style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#ffffff;text-decoration:none;">Shop Now</a>
                 </td></tr>
               </table>
@@ -170,7 +172,7 @@ export function renderCampaignTemplate({
     </tr>
   </table>
 </td></tr>
-<tr><td bgcolor="#ffffff" style="padding:0 32px 52px;font-size:0;line-height:0;">&nbsp;</td></tr>` : ''
+<tr><td bgcolor="#f7f7f5" style="padding:0 32px 56px;font-size:0;line-height:0;">&nbsp;</td></tr>` : ''
 
   // ── 5. SOCIAL PROOF ───────────────────────────────────────────────────────────
   // Horizontal trust signal strip. Renders only if real scraped data exists.
@@ -178,12 +180,12 @@ export function renderCampaignTemplate({
   const trustEntries = Object.entries(d.trustSignals || {}).filter(([, v]) => v)
 
   const socialProof = trustEntries.length > 0 ? `
-<tr><td bgcolor="#111111" style="padding:36px 40px;">
+<tr><td bgcolor="#111111" style="padding:44px 40px;">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
       ${trustEntries.map(([key, val], i) => {
         const sep = i < trustEntries.length - 1
-          ? `<td style="width:1px;background:rgba(255,255,255,0.1);padding:0;font-size:0;">&nbsp;</td>`
+          ? `<td style="width:1px;background:rgba(255,255,255,0.12);padding:0;font-size:0;">&nbsp;</td>`
           : ''
         const labels = {
           freeShipping: 'Free Shipping',
