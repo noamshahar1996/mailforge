@@ -137,31 +137,18 @@ export function renderEditorialTemplate({
   <p style="font-family:${bf};font-size:13px;font-weight:400;color:rgba(0,0,0,0.45);margin:0 0 16px;letter-spacing:0.3px;">Welcome, {{ first_name | default: 'there' }}</p>
   <div style="font-family:${df};font-size:50px;font-weight:800;color:#0a0a0a;line-height:0.92;letter-spacing:-2.5px;margin-bottom:48px;">${c.hero_headline || ''}</div>
 
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-    ${isWelcome && offer ? `
-    <tr><td style="padding:0 0 28px 0;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-        <tr><td style="padding:14px 20px 14px 16px;background:${darkenColor(accent, 0.94)};border-left:3px solid ${accent};">
-          <p style="font-family:${bf};font-size:8px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:rgba(0,0,0,0.35);margin:0 0 7px;">Your welcome offer</p>
-          <span style="font-family:${bf};font-size:20px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#0a0a0a;display:block;margin-bottom:7px;">${offer.toUpperCase()}</span>
-          <p style="font-family:${bf};font-size:8px;font-weight:400;color:rgba(0,0,0,0.3);margin:0;letter-spacing:1px;text-transform:uppercase;">At checkout &nbsp;·&nbsp; 48 hours</p>
-        </td></tr>
-      </table>
+  ${isWelcome && offer ? `
+  <p style="font-family:${bf};font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:rgba(0,0,0,0.38);margin:0 0 8px;">Use code at checkout</p>
+  <p style="font-family:${df};font-size:32px;font-weight:800;color:#0a0a0a;letter-spacing:-0.5px;margin:0 0 40px;line-height:1;">${offer.toUpperCase()}</p>
+  ` : ''}
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+    <tr><td bgcolor="${primary}" style="padding:21px 72px;border-radius:3px;box-shadow:0 6px 20px rgba(0,0,0,0.22);">
+      <a href="#" style="font-family:${bf};font-size:11px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3px;color:${primaryText};">${c.cta_button || 'SHOP NOW'}</a>
     </td></tr>
-    ` : ''}
-    <tr><td>
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-        <tr><td bgcolor="${primary}" style="padding:21px 72px;border-radius:3px;box-shadow:0 6px 20px rgba(0,0,0,0.22);">
-          <a href="#" style="font-family:${bf};font-size:11px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3px;color:${primaryText};">${c.cta_button || 'SHOP NOW'}</a>
-        </td></tr>
-      </table>
-    </td></tr>
-    ${c.urgency_line && !isWelcome ? `
-    <tr><td style="padding:20px 0 0;">
-      <p style="font-family:${bf};font-size:11px;color:rgba(0,0,0,0.35);margin:0;letter-spacing:0.5px;">${c.urgency_line}</p>
-    </td></tr>
-    ` : ''}
   </table>
+
+  ${c.urgency_line && !isWelcome ? `<p style="font-family:${bf};font-size:11px;color:rgba(0,0,0,0.35);margin:20px 0 0;letter-spacing:0.5px;">${c.urgency_line}</p>` : ''}
 
 </td></tr>`
 
