@@ -35,8 +35,7 @@ export function prepareTemplateData(brandData, copy, productImages) {
     heroImageUrl: sanitizeUrl(brandData.uploadedHeroImage) || null,
 
     // ── Product images ──────────────────────────────────────────────────────
-    // Only user-selected images passed from page.js via selectedImages.
-    // Max 3. If empty: pillar sections render text-only.
+    // All user-selected images passed from page.js. No cap — count drives pillar count.
     productImages: sanitizeProductImages(productImages),
 
     // ── Trust signals ────────────────────────────────────────────────────────
@@ -90,12 +89,11 @@ function sanitizeNavLinks(navItems) {
 function sanitizeProductImages(productImages) {
   if (!Array.isArray(productImages)) return []
   return productImages
-    .filter(img => img && sanitizeUrl(img.src))
+    .filter(img => img && img.src)
     .map(img => ({
       src:  sanitizeUrl(img.src),
       name: sanitizeText(img.alt || img.name) || 'Product',
     }))
-    .slice(0, 3)
 }
 
 function sanitizeTrustSignals(signals) {
@@ -137,7 +135,6 @@ function sanitizePillars(pillars) {
       title: sanitizeText(p.title) || '',
       body:  sanitizeText(p.body)  || '',
     }))
-    .slice(0, 4)
 }
 
 function getEmptyCopy() {
