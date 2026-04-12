@@ -138,10 +138,11 @@ export function renderEditorialTemplate({
   <div style="font-family:${df};font-size:50px;font-weight:800;color:#0a0a0a;line-height:0.92;letter-spacing:-2.5px;margin-bottom:48px;">${c.hero_headline || ''}</div>
 
   ${isWelcome && offer ? `
-  <p style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:rgba(0,0,0,0.45);margin:0 0 10px;">Exclusive welcome offer</p>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin-bottom:40px;">
-    <tr><td style="padding:20px 52px;background:${darkenColor(accent, 0.88)};border-left:4px solid ${accent};">
-      <span style="font-family:${bf};font-size:22px;font-weight:800;letter-spacing:6px;text-transform:uppercase;color:#0a0a0a;">${offer.toUpperCase()}</span>
+    <tr><td style="padding:20px 28px 20px 24px;background:${darkenColor(accent, 0.88)};border-left:4px solid ${accent};">
+      <p style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:rgba(0,0,0,0.4);margin:0 0 10px;">Exclusive welcome offer</p>
+      <span style="font-family:${bf};font-size:24px;font-weight:800;letter-spacing:6px;text-transform:uppercase;color:#0a0a0a;display:block;margin-bottom:10px;">${offer.toUpperCase()}</span>
+      <p style="font-family:${bf};font-size:9px;font-weight:400;color:rgba(0,0,0,0.38);margin:0;letter-spacing:1.5px;text-transform:uppercase;">Apply at checkout &nbsp;·&nbsp; Expires in 48 hours</p>
     </td></tr>
   </table>
   ` : ''}
@@ -152,7 +153,6 @@ export function renderEditorialTemplate({
     </td></tr>
   </table>
 
-  ${isWelcome && offer ? `<p style="font-family:${bf};font-size:9px;color:rgba(0,0,0,0.32);margin:20px 0 0;letter-spacing:2px;text-transform:uppercase;">Apply at checkout &nbsp;·&nbsp; Expires in 48 hours</p>` : ''}
   ${c.urgency_line && !isWelcome ? `<p style="font-family:${bf};font-size:11px;color:rgba(0,0,0,0.35);margin:20px 0 0;letter-spacing:0.5px;">${c.urgency_line}</p>` : ''}
 
 </td></tr>`
