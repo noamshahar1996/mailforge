@@ -128,22 +128,39 @@ export function renderEditorialTemplate({
   </table>
 </td></tr>` : ''
 
-  // ── 3. HERO HEADLINE ─────────────────────────────────────────────────────────
-  // Split at ' — ' to get the highlighted second line
-  const headlineParts = (c.hero_headline || '').split(/\s*—\s*/)
-  const line1 = headlineParts[0] ? headlineParts[0].trim() : c.hero_headline
-  const line2 = headlineParts[1] ? headlineParts[1].trim() : ''
+  // ── 3. HERO BLOCK — headline → offer → CTA → image ───────────────────────────
+  // Conversion-optimised order: value proposition is clear above the fold.
+  // Offer and CTA appear before the image so they're immediately visible.
+  const heroBlock = `
+<tr><td bgcolor="${lightBg}" style="padding:72px 56px 56px 64px;text-align:left;">
 
-  const heroHeadline = `
-<tr><td bgcolor="${lightBg}" style="padding:60px 48px 24px;text-align:center;">
-  <div style="font-family:${df};font-size:44px;font-weight:800;color:#111111;line-height:1.0;letter-spacing:-1.5px;margin-bottom:${line2 ? '16px' : '0'};">${line1}</div>
-  ${line2 ? `<div style="display:inline-block;background:${accent};border-radius:6px;padding:8px 28px;margin-top:4px;">
-    <span style="font-family:${df};font-size:44px;font-weight:800;color:${accentText};letter-spacing:-1.5px;">${line2}</span>
-  </div>` : ''}
+  <div style="font-family:${df};font-size:50px;font-weight:800;color:#0a0a0a;line-height:0.92;letter-spacing:-2.5px;margin-bottom:${line2 ? '16px' : '48px'};">${line1}</div>
+  ${line2 ? `<div style="display:inline-block;background:${accent};border-radius:3px;padding:10px 32px;margin-bottom:48px;">
+    <span style="font-family:${df};font-size:50px;font-weight:800;color:${accentText};letter-spacing:-2.5px;">${line2}</span>
+  </div><br>` : ''}
+
+  ${isWelcome && offer ? `
+  <p style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:rgba(0,0,0,0.45);margin:0 0 10px;">Exclusive welcome offer</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin-bottom:40px;">
+    <tr><td style="padding:20px 52px;background:${darkenColor(accent, 0.88)};border-left:4px solid ${accent};">
+      <span style="font-family:${bf};font-size:22px;font-weight:800;letter-spacing:6px;text-transform:uppercase;color:#0a0a0a;">${offer.toUpperCase()}</span>
+    </td></tr>
+  </table>
+  ` : ''}
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left">
+    <tr><td bgcolor="${primary}" style="padding:21px 72px;border-radius:3px;box-shadow:0 6px 20px rgba(0,0,0,0.22);">
+      <a href="#" style="font-family:${bf};font-size:11px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3px;color:${primaryText};">${c.cta_button || 'SHOP NOW'}</a>
+    </td></tr>
+  </table>
+
+  ${isWelcome && offer ? `<p style="font-family:${bf};font-size:9px;color:rgba(0,0,0,0.32);margin:20px 0 0;letter-spacing:2px;text-transform:uppercase;">Apply at checkout &nbsp;·&nbsp; Expires in 48 hours</p>` : ''}
+  ${c.urgency_line && !isWelcome ? `<p style="font-family:${bf};font-size:11px;color:rgba(0,0,0,0.35);margin:20px 0 0;letter-spacing:0.5px;">${c.urgency_line}</p>` : ''}
+
 </td></tr>`
 
   // ── 4. HERO IMAGE — only if heroImageUrl is provided ─────────────────────────
-  // No gradient fallback. No placeholder. If null → section is skipped entirely.
+  // Appears below the offer/CTA — image supports the headline, not competes with it.
   const heroImage = d.heroImageUrl ? `
 <tr><td bgcolor="${lightBg}" style="padding:8px 0 0;font-size:0;line-height:0;">
   <div style="position:relative;overflow:hidden;">
@@ -152,34 +169,23 @@ export function renderEditorialTemplate({
   </div>
 </td></tr>` : ''
 
-  // ── 5. DISCOUNT CODE — only for welcome emails with an offer ─────────────────
-  const discountCode = isWelcome && offer ? `
-<tr><td bgcolor="${lightBg}" style="padding:56px 56px 28px;text-align:center;">
-  <p style="font-family:${bf};font-size:9px;font-weight:700;letter-spacing:6px;text-transform:uppercase;color:rgba(0,0,0,0.25);margin:0 0 20px;">Your exclusive welcome gift</p>
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
-    <tr><td style="border:1px solid rgba(0,0,0,0.15);padding:20px 64px;">
-      <span style="font-family:${bf};font-size:22px;font-weight:700;letter-spacing:14px;text-transform:uppercase;color:#111111;">${offer.toUpperCase()}</span>
-    </td></tr>
-  </table>
-  <p style="font-family:${bf};font-size:10px;color:rgba(0,0,0,0.25);margin:16px 0 0;letter-spacing:2px;text-transform:uppercase;">Apply at checkout &nbsp;·&nbsp; Expires in 48 hours</p>
-</td></tr>` : ''
+  // Discount code is now rendered inside heroBlock above — not separately.
 
   // ── 6. BODY COPY — only if story_p1 exists ───────────────────────────────────
+  // CTA is already in the hero block. Body copy here is supporting content only.
   const bodyCopy = c.story_p1 ? `
-<tr><td bgcolor="${lightBg}" style="padding:56px 68px 0;text-align:center;">
+<tr><td bgcolor="${lightBg}" style="padding:52px 68px 56px;text-align:center;">
   ${c.story_p1 ? `<p style="font-family:${bf};font-size:16px;font-weight:400;line-height:1.95;color:#4a4a4a;margin:0 0 22px;">${c.story_p1}</p>` : ''}
   ${c.story_p2 ? `<p style="font-family:${bf};font-size:16px;font-weight:400;line-height:1.95;color:#4a4a4a;margin:0 0 22px;">${c.story_p2}</p>` : ''}
   ${c.story_p3 ? `<p style="font-family:${bf};font-size:16px;font-weight:400;line-height:1.95;color:#4a4a4a;margin:0;">${c.story_p3}</p>` : ''}
-</td></tr>
-<tr><td bgcolor="${lightBg}" style="padding:36px 56px 64px;text-align:center;">
-  <a href="#" style="display:inline-block;background:#111111;color:#ffffff;font-family:${bf};font-size:10px;font-weight:700;text-transform:uppercase;text-decoration:none;letter-spacing:3.5px;padding:19px 64px;border-radius:0;">${c.cta_button}</a>
-  ${c.urgency_line ? `<p style="font-family:${bf};font-size:11px;color:rgba(0,0,0,0.28);margin:18px 0 0;letter-spacing:1px;">${c.urgency_line}</p>` : ''}
 </td></tr>` : ''
 
   // ── 7. PILLARS ────────────────────────────────────────────────────────────────
   // Text-only if no product image — never hidden because of missing image.
   // Hidden only if pillars array is empty.
-  const pillarCount = Math.min(c.pillars.length, d.productImages.length)
+  // Pillar count is driven by how many pillars the copy generated.
+  // Images are matched by index — if no image at that slot, renders text-only.
+  const pillarCount = c.pillars.length
 
   const pillarsHeading = c.pillars_heading && pillarCount > 0 ? `
 <tr><td bgcolor="${lightBg}" style="padding:0 64px;">
@@ -192,9 +198,9 @@ export function renderEditorialTemplate({
   <h2 style="font-family:${df};font-size:36px;font-weight:800;text-transform:uppercase;color:#111111;margin:0;line-height:1.0;letter-spacing:-0.5px;">${c.pillars_heading}</h2>
 </td></tr>` : ''
 
-  const pillarRows = c.pillars.slice(0, pillarCount).map((pillar, i) => {
-    const isLeft     = i % 2 === 0
-    const img        = d.productImages[i] || null
+  const pillarRows = c.pillars.map((pillar, i) => {
+    const isLeft = i % 2 === 0
+    const img    = d.productImages[i] || null  // null → text-only row
     const numCircle = `<div style="width:64px;height:64px;border-radius:50%;background:${darkAccent};display:inline-flex;align-items:center;justify-content:center;font-family:${bf};font-size:20px;font-weight:700;color:#ffffff;line-height:1;">${i + 1}</div>`
 
     if (img) {
@@ -308,9 +314,8 @@ export function renderEditorialTemplate({
   const sections = [
     header,
     nav,
-    heroHeadline,
-    heroImage,
-    discountCode,
+    heroBlock,    // headline + offer + CTA (above the fold)
+    heroImage,    // image below — supports the headline
     bodyCopy,
     pillars,
     closingCta,
