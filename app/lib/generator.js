@@ -209,6 +209,7 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
   const roleInstructions = {
     'discount_delivery': `Email 1 of welcome flow. Deliver discount code immediately.
 - hero_headline: clean short welcome, NO personalization tag, max 6 words. Example: "Here's your exclusive gift"
+- hero_subline: one supporting line connecting headline to offer, 10–15 words max. Example: "A simple way to upgrade your woodworking setup, on us"
 - story_p1: one sentence about the brand promise
 - story_p2: one sentence about what makes them different
 - pillars_heading: "WHY WOODWORKERS CHOOSE US" (brand-relevant equivalent)
@@ -217,6 +218,7 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 
     'education': `Email 2 of welcome flow. Educate about the product. No discount.
 - hero_headline: product benefit hook, max 6 words
+- hero_subline: one line expanding the benefit, 10–15 words max. Example: "Everything you need to know before buying your first tools"
 - story_p1 + story_p2: how the product works and why it's different
 - pillars_heading: "THE KEY BENEFITS" (brand-relevant)
 - pillars: ${pc} objects — title + body using: ${(brandData.productNames || []).join(', ')}
@@ -224,6 +226,7 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 
     'urgency': `Email 4 of welcome flow. Last chance. Urgency.
 - hero_headline: urgency about offer expiring, NO personalization tag, max 6 words. Example: "Your discount expires today"
+- hero_subline: one line reinforcing urgency naturally, 10–15 words max. Example: "This is the last chance to save on your order"
 - story_p1: final reminder of key benefit
 - cta_button: "CLAIM MY DISCOUNT"
 - cta_headline: final push sentence
@@ -231,11 +234,13 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 
     'thank_you': `Post-purchase thank you. Warm, celebratory. No discount.
 - hero_headline: celebratory confirmation, NO personalization tag, max 6 words. Example: "Your order is confirmed"
+- hero_subline: one warm reassuring line, 10–15 words max. Example: "Your tools are being packed and will ship soon"
 - story_p1: welcome them, reassure their choice
 - cta_button: "TRACK MY ORDER"`,
 
     'how_to_use': `How to use the product. Educational. No selling.
 - hero_headline: about using the product, max 6 words
+- hero_subline: one line setting up the tips, 10–15 words max. Example: "Here are the three things that make the biggest difference"
 - story_p1: intro paragraph
 - pillars_heading: "HOW TO GET STARTED"
 - pillars: ${pc} step-by-step tips for ${(brandData.productNames || [])[0] || brandData.productType}
@@ -243,6 +248,7 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 
     'social_proof': `Social proof email. Reviews and complementary products.
 - hero_headline: social proof hook, max 6 words
+- hero_subline: one line referencing customer satisfaction, 10–15 words max. Example: "Join thousands of woodworkers who already use these tools daily"
 - story_p1: what customers are saying
 - pillars_heading: "WHAT CUSTOMERS LOVE"
 - pillars: ${pc} customer benefit stories
@@ -250,76 +256,89 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 
     'remind': `Abandoned cart reminder. No discount. Direct.
 - hero_headline: cart reminder, NO personalization tag, max 6 words. Example: "Your cart is waiting"
+- hero_subline: one soft reminder line, 10–15 words max. Example: "The items you saved are still here, ready when you are"
 - story_p1: emotional connection to the product
 - cta_button: "COMPLETE MY ORDER"
 - urgency_line: "Items in your cart may sell out"`,
 
     'build_trust': `Abandoned cart — remove doubt. No discount.
 - hero_headline: trust-building, max 6 words
+- hero_subline: one line addressing hesitation, 10–15 words max. Example: "Here is why thousands of customers came back for more"
 - pillars_heading: "WHY CUSTOMERS TRUST US"
 - pillars: ${pc} trust reasons using: ${(brandData.keySellingPoints || []).join(', ')}
 - cta_button: "COMPLETE MY ORDER"`,
 
     'push': `Abandoned cart — final push. Reveal discount if exists.
 - hero_headline: final urgency, NO personalization tag, max 6 words. Example: "This is your last chance"
+- hero_subline: one line adding scarcity or reason, 10–15 words max. Example: "Your items may not be available after today"
 - story_p1: final push
 - cta_button: "COMPLETE MY ORDER"
 - urgency_line: "This is your last reminder"`,
 
     'browse_remind': `Browse abandon — soft reminder. No pressure.
 - hero_headline: soft reminder, NO personalization tag, max 6 words. Example: "Still thinking it over?"
+- hero_subline: one gentle nudge line, 10–15 words max. Example: "The products you browsed are still waiting for you"
 - story_p1: why these products are worth coming back for
 - cta_button: "CONTINUE BROWSING"`,
 
     'browse_desire': `Browse abandon — build desire. No discount.
 - hero_headline: desire-building, max 6 words
+- hero_subline: one line building aspiration, 10–15 words max. Example: "Here is what customers say after their first order"
 - pillars_heading: "WHAT CUSTOMERS SAY"
 - pillars: ${pc} customer benefit stories
 - cta_button: "SHOP NOW"`,
 
     'browse_push': `Browse abandon — final push.
 - hero_headline: urgency, max 6 words
+- hero_subline: one line creating final push, 10–15 words max. Example: "This offer will not be available again after today"
 - story_p1: final reason to buy
 - cta_button: "SHOP NOW"
 - urgency_line: "Don't miss out"`,
 
     'checkout_remind': `Checkout abandon — very close. Direct.
 - hero_headline: almost there, NO personalization tag, max 6 words. Example: "You're one click away"
+- hero_subline: one line reassuring the purchase, 10–15 words max. Example: "Your order is saved and ready — just complete the checkout"
 - story_p1: items saved, reassure them
 - cta_button: "COMPLETE MY ORDER"
 - urgency_line: "Your order is saved — complete it now"`,
 
     'checkout_trust': `Checkout abandon — remove final objections.
 - hero_headline: trust and security, max 6 words
+- hero_subline: one line removing objection, 10–15 words max. Example: "Every order is protected with our full satisfaction guarantee"
 - pillars_heading: "YOUR ORDER IS PROTECTED"
 - pillars: ${pc} items — guarantee, returns, secure payment
 - cta_button: "COMPLETE MY ORDER"`,
 
     'checkout_push': `Checkout abandon — last chance.
 - hero_headline: cart expiry urgency, NO personalization tag, max 6 words. Example: "Your cart expires today"
+- hero_subline: one line adding finality, 10–15 words max. Example: "Complete your order now before your saved items are released"
 - story_p1: cart expiring, discount reveal
 - cta_button: "COMPLETE MY ORDER"
 - urgency_line: "This is your final reminder"`,
 
     'sub_welcome': `Subscription welcome. Set expectations.
 - hero_headline: warm welcome, NO personalization tag, max 6 words. Example: "Welcome to the family"
+- hero_subline: one line setting expectations warmly, 10–15 words max. Example: "Here is what you can expect from your first delivery"
 - story_p1 + story_p2: what to expect
 - cta_button: "MANAGE MY SUBSCRIPTION"`,
 
     'sub_habit': `Subscription — build daily habit.
 - hero_headline: about building the habit, max 6 words
+- hero_subline: one line framing the routine, 10–15 words max. Example: "A small daily step that makes a big long-term difference"
 - pillars_heading: "YOUR DAILY RITUAL"
 - pillars: ${pc} daily routine steps
 - cta_button: "LEARN MORE TIPS"`,
 
     'sub_expectations': `Subscription — set realistic expectations.
 - hero_headline: what they'll experience, max 6 words
+- hero_subline: one line setting honest expectations, 10–15 words max. Example: "Here is an honest timeline of what to expect next"
 - pillars_heading: "WHAT TO EXPECT"
 - pillars: ${pc} milestones (week 1, month 1, month 3)
 - cta_button: "TRACK YOUR PROGRESS"`,
 
     'Welcome email': `Welcome email. Deliver discount.
 - hero_headline: clean welcome, NO personalization tag, max 6 words. Example: "Here's your welcome gift"
+- hero_subline: one line connecting headline to offer, 10–15 words max. Example: "A simple way to start building your ideal workshop setup"
 - story_p1 + story_p2: brief brand intro with real USPs
 - pillars_heading: "WHY CUSTOMERS LOVE US"
 - pillars: ${pc} USPs from: ${(brandData.keySellingPoints || []).join(', ')}
@@ -327,28 +346,33 @@ async function generateCopyWithClaude({ brandData, emailType, offer, productImag
 
     'Abandoned cart': `Abandoned cart. Mystery offer mechanic.
 - hero_headline: cart reminder, NO personalization tag, max 6 words. Example: "Your cart is waiting"
+- hero_subline: one line referencing the saved items, 10–15 words max. Example: "The tools you were looking at are still ready for you"
 - story_p1: emotional connection
 - cta_button: "COMPLETE MY ORDER"`,
 
     'Post-purchase': `Post-purchase thank you. No discount.
 - hero_headline: celebration, NO personalization tag, max 6 words. Example: "Your order is confirmed"
+- hero_subline: one warm next-step line, 10–15 words max. Example: "Your tools are on their way — here is what happens next"
 - story_p1: what happens next
 - cta_button: "TRACK MY ORDER"`,
 
     'Flash sale': `Flash sale. Urgent.
 - hero_headline: offer or urgency, max 6 words. No personalization.
+- hero_subline: one line amplifying urgency or value, 10–15 words max. Example: "Limited stock — this sale ends when it sells out"
 - story_p1: urgency copy
 - cta_button: "SHOP THE SALE"
 - urgency_line: "Sale ends soon"`,
 
     'Win-back': `Win-back for inactive subscribers.
 - hero_headline: re-engagement, NO personalization tag, max 6 words. Example: "We've missed you"
+- hero_subline: one line explaining what is new, 10–15 words max. Example: "A lot has changed since your last visit — take a look"
 - pillars_heading: "WHAT'S NEW SINCE YOU LEFT"
 - pillars: ${pc} new things or improvements
 - cta_button: "SEE WHAT'S NEW"`,
 
     'Product launch': `Product launch announcement. No personalization.
 - hero_headline: announce new product, max 6 words
+- hero_subline: one line teasing what is new, 10–15 words max. Example: "Built from scratch to solve the problem you kept running into"
 - pillars_heading: "WHY THIS CHANGES EVERYTHING"
 - pillars: ${pc} key features or benefits
 - cta_button: "SHOP THE NEW COLLECTION"`,
@@ -383,6 +407,7 @@ GLOBAL RULES:
 - If instructions mention pillars, include pillars_heading (string) and pillars (array of {title, body}).
 - CRITICAL: If instructions say "pillars: N objects", you MUST return EXACTLY N pillar objects. Not fewer. Not more. Exactly N.
 - CRITICAL: hero_headline must NEVER contain {{ first_name | default: 'there' }} or any Klaviyo personalization tag. The template handles personalization separately above the headline. Keep hero_headline short, clean, and direct.
+- hero_subline must be a single short sentence (10–15 words max). It connects the headline to the offer or next section. Natural, not salesy. No Klaviyo tags.
 
 Return this exact JSON (include all fields, use empty string or empty array if not applicable):
 {
