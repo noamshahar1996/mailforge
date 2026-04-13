@@ -307,10 +307,54 @@ export async function scrapeWebsite(url) {
   const baseUrl = url.startsWith('http') ? url : `https://${url}`
   const origin = new URL(baseUrl).origin
 
-  const pagePaths = ['', '/about', '/products', '/collections', '/collections/all']
-  const pageUrls = pagePaths.map(p => origin + p)
+  // ── STEP 1: Fetch homepage to discover nav links ──────────────────────────
+  // We start with the homepage, extract all internal links from nav/header,
+  // then add curated fallback paths that most Shopify stores have.
+  const homepageHtml = await fetchPage(origin)
 
-  const htmlResults = await Promise.allSettled(pageUrls.map(u => fetchPage(u)))
+  // Discover internal links from nav, header, and footer
+  const discoveredPaths = new Set(['', '/about', '/products', '/collections', '/collections/all'])
+  const extraKeywords = [
+    'about', 'story', 'our-story', 'mission', 'team',
+    'testimonials', 'reviews', 'results', 'gallery',
+    'ingredients', 'how-it-works', 'science', 'benefits',
+    'best-sellers', 'bestsellers', 'new', 'new-arrivals',
+    'blog', 'faq', 'pages/about', 'pages/our-story',
+  ]
+
+  if (homepageHtml) {
+    const $home = cheerio.load(homepageHtml)
+
+    // Extract all internal links from nav, header, footer
+    $home('nav a, header a, footer a, [class*="menu"] a, [class*="navigation"] a').each((_, el) => {
+      const href = $home(el).attr('href') || ''
+      if (href.startsWith('/') && !href.startsWith('//') && href.length > 1) {
+        // Skip cart, account, search, external
+        if (!href.includes('cart') && !href.includes('account') && !href.includes('search') && !href.includes('#')) {
+          discoveredPaths.add(href)
+        }
+      }
+    })
+
+    // Also add any paths matching extra keywords found anywhere on the page
+    $home('a[href]').each((_, el) => {
+      const href = $home(el).attr('href') || ''
+      if (href.startsWith('/') && href.length > 1) {
+        const lower = href.toLowerCase()
+        if (extraKeywords.some(k => lower.includes(k))) {
+          discoveredPaths.add(href)
+        }
+      }
+    })
+  }
+
+  // Cap at 16 pages total to stay within timeout budget
+  const pageUrls = [...discoveredPaths].slice(0, 16).map(p => origin + p)
+
+  // Fetch all pages in parallel (homepage already fetched above)
+  const htmlResults = await Promise.allSettled(
+    pageUrls.map(u => u === origin ? Promise.resolve(homepageHtml) : fetchPage(u))
+  )
 
   const parsedPages = []
   for (let i = 0; i < htmlResults.length; i++) {
