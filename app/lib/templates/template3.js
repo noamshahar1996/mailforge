@@ -95,30 +95,13 @@ export function renderCampaignTemplate({
 </td></tr>` : ''
 
   // ── 3. DISCOUNT HEADLINE ──────────────────────────────────────────────────────
-  // Large bold brand-color headline wrapped in a 3-column decorative table.
-  // Side columns (35px each) show a subtle product image at low opacity.
-  // If no product image is available, side columns render as empty background.
-  // Main content column is 530px — barely narrower than full width.
-
-  const decoImg = d.productImages.length > 0 ? d.productImages[0] : null
-
-  const sideColContent = decoImg
-    ? `<img src="${decoImg.src}" width="35" style="display:block;width:35px;height:auto;opacity:0.18;border:0;" alt="">`
-    : `&nbsp;`
+  // Large bold brand-color headline. Matches "15% DISCOUNT" from reference.
 
   const discountLine = c.hero_headline ? `
-<tr>
-  <td width="35" bgcolor="${pageBg}" style="vertical-align:top;padding:44px 0 12px;text-align:center;">
-    ${sideColContent}
-  </td>
-  <td bgcolor="${pageBg}" style="padding:44px 12px 12px;text-align:center;vertical-align:top;">
-    <h1 style="font-family:${df};font-size:56px;font-weight:800;color:${brand};line-height:0.95;letter-spacing:-1px;margin:0;text-transform:uppercase;">${c.hero_headline}</h1>
-    ${c.hero_subline ? `<p style="font-family:${bf};font-size:16px;font-weight:400;color:#555555;margin:16px 0 0;line-height:1.6;">${c.hero_subline}</p>` : ''}
-  </td>
-  <td width="35" bgcolor="${pageBg}" style="vertical-align:top;padding:44px 0 12px;text-align:center;">
-    ${sideColContent}
-  </td>
-</tr>` : ''
+<tr><td bgcolor="${pageBg}" style="padding:44px 48px 12px;text-align:center;">
+  <h1 style="font-family:${df};font-size:56px;font-weight:800;color:${brand};line-height:0.95;letter-spacing:-1px;margin:0;text-transform:uppercase;">${c.hero_headline}</h1>
+  ${c.hero_subline ? `<p style="font-family:${bf};font-size:16px;font-weight:400;color:#555555;margin:16px 0 0;line-height:1.6;">${c.hero_subline}</p>` : ''}
+</td></tr>` : ''
 
   // ── 4. INTRO ─────────────────────────────────────────────────────────────────
   // Centered greeting + body paragraph. "Hi Mitzi, Welcome to SimplyFuel!..."
