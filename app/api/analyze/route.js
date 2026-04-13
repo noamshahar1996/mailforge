@@ -75,7 +75,7 @@ export async function POST(request) {
       if (src.includes('logo') || src.includes('icon') || src.includes('favicon') || src.includes('pixel')) return false
       if (!src.includes('.jpg') && !src.includes('.jpeg') && !src.includes('.png') && !src.includes('.webp')) return false
       return true
-    }).slice(0, 12)
+    }).slice(0, 40)
 
     return NextResponse.json({
       brandData: { ...brandData, logoUrl },
